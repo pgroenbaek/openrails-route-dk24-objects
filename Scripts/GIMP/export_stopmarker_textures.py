@@ -8,7 +8,7 @@ from_km = 0
 to_km = 10
 stepsize = 10
 image_name = "PGA_DKMilepost_x_y.xcf"
-export_path = "D:\\Games\\Open Rails\\3D Models\\DK24\\DKMilepost\\TextureExport"
+export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost\\TextureExport"
 aceit_path = "D:\\Games\\Open Rails\\Tools\\AceIt\\aceit.exe"
 
 if not os.path.exists(export_path): 

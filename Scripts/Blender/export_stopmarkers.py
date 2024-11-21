@@ -8,8 +8,8 @@ from_m = 10
 to_m = 400
 stepsize = 10
 material = "PGA_DKMilepost_x_y"
-texture_path = "D:\\Games\\Open Rails\\3D Models\\DK24\\DKMilepost"
-export_path = "D:\\Games\\Open Rails\\3D Models\\DK24\\DKMilepost\\Export"
+texture_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost"
+export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost\\Export"
 
 def replaceAll(filepath, search_exp, replace_exp):
     with open(filepath, 'r', encoding='utf-16') as file:
