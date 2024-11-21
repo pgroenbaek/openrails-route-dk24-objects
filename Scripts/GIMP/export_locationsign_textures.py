@@ -11,7 +11,7 @@ locations = ["Aarup", "Borup", "Ejby", "Elmelund", "Fjenneslev", "Forlev",
     "Odense", "Østerport", "Ringsted", "Roskilde", "Slagelse", "Snoghøj", "Sorø",
     "Sprogø", "Taulov", "Tommerup", "Ullerslev", "Valby", "Viby Sj.", "Vigerslev"]
 image_name = "PGA_DKSign_Location_x.xcf"
-export_path = "D:\\Games\\Open Rails\\3D Models\\DK24\\DKSign\\Location\\TextureExport"
+export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKSign\\Location\\TextureExport"
 aceit_path = "D:\\Games\\Open Rails\\Tools\\AceIt\\aceit.exe"
 
 def toPathName(location):

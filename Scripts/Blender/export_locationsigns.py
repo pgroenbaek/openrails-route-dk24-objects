@@ -13,8 +13,8 @@ locations = ["Aarup", "Borup", "Ejby", "Elmelund", "Fjenneslev", "Forlev",
     "Odense", "Østerport", "Ringsted", "Roskilde", "Slagelse", "Snoghøj", "Sorø",
     "Sprogø", "Taulov", "Tommerup", "Ullerslev", "Valby", "Viby Sj.", "Vigerslev"]
 material = "PGA_DKSign_Location_x"
-texture_path = "D:\\Games\\Open Rails\\3D Models\\DK24\\DKSign\\Location"
-export_path = "D:\\Games\\Open Rails\\3D Models\\DK24\\DKSign\\Location\\Export"
+texture_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKSign\\Location"
+export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKSign\\Location\\Export"
 
 def toPathName(location):
     path_name = copy.deepcopy(location)
