@@ -1,9 +1,9 @@
 
-# Denmark 2024 Objects
+# Denmark 2024 objects
 
 ![Denmark 2024](./DK24_small.png)
 
-Custom objects for the [Denmark 2024 OpenRails route](https://github.com/pgroenbaek/openrails-route-dk24).
+Custom objects for the [Denmark 2024 Open Rails route](https://github.com/pgroenbaek/openrails-route-dk24).
 
 ## License:
 
@@ -14,5 +14,5 @@ The "PGA_\*" models/textures are licensed under [CC BY-NC-SA 4.0](https://creati
 ## Credits:
 
 Special thanks to:
-- [Stefmiz](https://www.youtube.com/@stefmiz ) for his blender tutorials on YouTube.
+- [Stefmiz](https://www.youtube.com/@stefmiz ) for his blender tutorials on YouTube (those were for Trainz but were very useful regardless).
 - [Pete Willard](https://www.github.com/pwillard ) for maintaining the [Blender_MSTS_ORTS_Exporter](https://github.com/pwillard/Blender_MSTS_ORTS_Exporter ).

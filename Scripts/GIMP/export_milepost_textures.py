@@ -4,7 +4,7 @@ import os
 import subprocess
 from gimpfu import *
 
-from_km = 231
+from_km = 0
 to_km = 249
 image_name = "PGA_DKMilepost_x_y.xcf"
 export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost\\TextureExport"
