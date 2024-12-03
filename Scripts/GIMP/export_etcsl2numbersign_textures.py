@@ -5,32 +5,32 @@ import subprocess
 from gimpfu import *
 
 marker_numbers = [x for xs in [
-["Ig-%03d" % (x) for x in range(56, 62 + 1)],
-["Avh-%03d" % (x) for x in range(1, 60 + 1)],
-["Kib-%03d" % (x) for x in range(1, 64 + 1)],
-["Jsf-%03d" % (x) for x in range(1, 40 + 1)],
-["Kjn-%03d" % (x) for x in range(1, 70 + 1)],
-["Lel-%03d" % (x) for x in range(1, 60 + 1)],
-["Bjs-%03d" % (x) for x in range(1, 60 + 1)],
-["Ada-%03d" % (x) for x in range(1, 40 + 1)],
-["Rg-%03d" % (x) for x in range(110, 120 + 1)],
-["Elm-%03d" % (x) for x in range(30, 40 + 1)],
-["Rvb-%03d" % (x) for x in range(1, 60 + 1)],
-["Spb-%03d" % (x) for x in range(1, 60 + 1)],
-["Kel-%03d" % (x) for x in range(1, 60 + 1)],
-["Anb-%03d" % (x) for x in range(1, 60 + 1)],
-["Grm-%03d" % (x) for x in range(1, 60 + 1)],
-["Sdh-%03d" % (x) for x in range(1, 60 + 1)],
-["Ind-%03d" % (x) for x in range(1, 60 + 1)],
-["Nra-%03d" % (x) for x in range(1, 60 + 1)],
-["Ka-%03d" % (x) for x in range(40, 50 + 1)]
+    ["Ig-%03d" % (x) for x in range(56, 62 + 1)],
+    ["Avh-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Kib-%03d" % (x) for x in range(1, 64 + 1)],
+    ["Jsf-%03d" % (x) for x in range(1, 40 + 1)],
+    ["Kjn-%03d" % (x) for x in range(1, 70 + 1)],
+    ["Lel-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Bjs-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Ada-%03d" % (x) for x in range(1, 40 + 1)],
+    ["Rg-%03d" % (x) for x in range(110, 120 + 1)],
+    ["Elm-%03d" % (x) for x in range(30, 40 + 1)],
+    ["Rvb-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Spb-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Kel-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Anb-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Grm-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Sdh-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Ind-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Nra-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Ka-%03d" % (x) for x in range(40, 50 + 1)]
 ] for x in xs]
 
 image_name = "PGA_DKSign_ETCSL2Number_x.xcf"
 export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\Models\\DKSign\\ETCSL2\\TextureExport"
 aceit_path = "D:\\Games\\Open Rails\\Tools\\AceIt\\aceit.exe"
 
-def toPathName(signnumber):
+def to_filename(signnumber):
     path_name = copy.deepcopy(signnumber)
     path_name = path_name.replace("-", "")
     return path_name
@@ -42,7 +42,7 @@ image = filter(lambda x: x.name == image_name, gimp.image_list())[0]
 textlayer_n = filter(lambda x: x.name == "N", image.layers)[0]
 
 for n in marker_numbers:
-        filename = "PGA_DKSign_ETCSL2Number_%s" % (n.replace("-", ""))
+        filename = "PGA_DKSign_ETCSL2Number_%s" % (to_filename(n))
         png_filepath = "%s\\%s.png" % (export_path, filename)
         ace_filepath = "%s\\%s.ace" % (export_path, filename)
         pdb.gimp_text_layer_set_text(textlayer_n, "%s" % (n))

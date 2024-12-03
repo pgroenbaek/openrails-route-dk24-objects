@@ -7,7 +7,7 @@ import sys
 import os
 
 locations = ["Aarup", "Borup", "Ejby", "Elmelund", "Fjenneslev", "Forlev",
-    "Fredericia", "Glostrup", "Helgoland", "Hellerup", "Høje Taastrup",
+    "Fredericia", "Glostrup", "Helgoland", "Hellerup", "Hjulby", "Høje Taastrup",
     "Holmstrup", "Hvidovre", "Kalvebod", "Kastrup", "Kavslunde", "Klampenborg",
     "København H", "København G", "Korsør", "Marslev", "Middelfart", "Nyborg",
     "Odense", "Østerport", "Ringsted", "Roskilde", "Slagelse", "Snoghøj", "Sorø",
@@ -16,7 +16,7 @@ material = "PGA_DKSign_Location_x"
 texture_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKSign\\Location"
 export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKSign\\Location\\Export"
 
-def toPathName(location):
+def to_filename(location):
     path_name = copy.deepcopy(location)
     path_name = path_name.replace("Æ", "Ae")
     path_name = path_name.replace("æ", "ae")
@@ -28,7 +28,7 @@ def toPathName(location):
     path_name = path_name.replace(".", "")
     return path_name
 
-def replaceAll(filepath, search_exp, replace_exp):
+def replace_text_in_file(filepath, search_exp, replace_exp):
     with open(filepath, 'r', encoding='utf-16') as file:
       filedata = file.read()
     filedata = filedata.replace(search_exp, replace_exp)
@@ -39,7 +39,7 @@ if not os.path.exists(export_path):
     os.makedirs(export_path)
 
 for location in locations:
-    filename = "PGA_DKSign_Location_%s" % (toPathName(location))
+    filename = "PGA_DKSign_Location_%s" % (to_filename(location))
     s_filepath = "%s\\%s.s" % (export_path, filename)
     sd_filepath = "%s\\%s.sd" % (export_path, filename)
     with open(sd_filepath, 'w') as sd_file:
@@ -50,4 +50,4 @@ for location in locations:
         sd_file.write('\tESD_Bounding_Box ( -0.500000 -0.100000 -0.010000 0.500000 0.100000 0.010833 )\n')
         sd_file.write(')\n')
     bpy.ops.export.msts_s(filepath=s_filepath)
-    replaceAll(s_filepath, "%s.ace" % (material), "%s.ace" % (filename))
+    replace_text_in_file(s_filepath, "%s.ace" % (material), "%s.ace" % (filename))

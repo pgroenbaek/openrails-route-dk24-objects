@@ -32,12 +32,12 @@ material_name = "PGA_DKSign_ETCSL2Number_x"
 export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\Models\\DKSign\\ETCSL2\\Export"
 aceit_path = "D:\\Games\\Open Rails\\Tools\\AceIt\\aceit.exe"
 
-def toFileName(signnumber):
+def to_filename(signnumber):
     path_name = copy.deepcopy(signnumber)
     path_name = path_name.replace("-", "")
     return path_name
 
-def replaceTextInFile(file_path, search_exp, replace_exp):
+def replace_text_in_file(file_path, search_exp, replace_exp):
     with open(file_path, 'r', encoding='utf-16') as file:
       file_text = file.read()
     file_text = file_text.replace(search_exp, replace_exp)
@@ -48,8 +48,8 @@ if not os.path.exists(export_path):
     os.makedirs(export_path)
 
 for n in marker_numbers:
-    file_name = "PGA_DKSign_ETCSL2Number_%s_L" % (toFileName(n))
-    texture_name = "PGA_DKSign_ETCSL2Number_%s" % (toFileName(n))
+    file_name = "PGA_DKSign_ETCSL2Number_%s_L" % (to_filename(n))
+    texture_name = "PGA_DKSign_ETCSL2Number_%s" % (to_filename(n))
     s_filepath = "%s\\%s.s" % (export_path, file_name)
     sd_filepath = "%s\\%s.sd" % (export_path, file_name)
     with open(sd_filepath, 'w') as sd_file:
@@ -60,4 +60,4 @@ for n in marker_numbers:
         sd_file.write('\tESD_Bounding_Box ( -0.705000 3.955000 0.025000 -0.375000 4.065000 0.045000 )\n')
         sd_file.write(')\n')
     bpy.ops.export.msts_s(filepath=s_filepath)
-    replaceTextInFile(s_filepath, "%s.ace" % (material_name), "%s.ace" % (texture_name))
+    replace_text_in_file(s_filepath, "%s.ace" % (material_name), "%s.ace" % (texture_name))
