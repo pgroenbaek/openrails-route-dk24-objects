@@ -5,7 +5,7 @@ import subprocess
 from gimpfu import *
 
 locations = ["Aarup", "Borup", "Ejby", "Elmelund", "Fjenneslev", "Forlev",
-    "Fredericia", "Glostrup", "Helgoland", "Hellerup", "Høje Taastrup",
+    "Fredericia", "Glostrup", "Helgoland", "Hellerup", "Hjulby", "Høje Taastrup",
     "Holmstrup", "Hvidovre", "Kalvebod", "Kastrup", "Kavslunde", "Klampenborg",
     "København H", "København G", "Korsør", "Marslev", "Middelfart", "Nyborg",
     "Odense", "Østerport", "Ringsted", "Roskilde", "Slagelse", "Snoghøj", "Sorø",
@@ -14,7 +14,7 @@ image_name = "PGA_DKSign_Location_x.xcf"
 export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKSign\\Location\\TextureExport"
 aceit_path = "D:\\Games\\Open Rails\\Tools\\AceIt\\aceit.exe"
 
-def toPathName(location):
+def to_filename(location):
     path_name = copy.deepcopy(location)
     path_name = path_name.replace("Æ", "Ae")
     path_name = path_name.replace("æ", "ae")
@@ -33,7 +33,7 @@ image = filter(lambda x: x.name == image_name, gimp.image_list())[0]
 textlayer_l = filter(lambda x: x.name == "L", image.layers)[0]
 
 for location in locations:
-    filename = "PGA_DKSign_Location_%s" % (toPathName(location))
+    filename = "PGA_DKSign_Location_%s" % (to_filename(location))
     png_filepath = "%s\\%s.png" % (export_path, filename)
     ace_filepath = "%s\\%s.ace" % (export_path, filename)
     pdb.gimp_text_layer_set_text(textlayer_l, "%s" % (location))

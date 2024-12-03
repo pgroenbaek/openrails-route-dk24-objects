@@ -11,7 +11,7 @@ material = "PGA_DKMilepost_x_y"
 texture_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost"
 export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost\\Export"
 
-def replaceAll(filepath, search_exp, replace_exp):
+def replace_text_in_file(filepath, search_exp, replace_exp):
     with open(filepath, 'r', encoding='utf-16') as file:
       filedata = file.read()
     filedata = filedata.replace(search_exp, replace_exp)
@@ -33,4 +33,4 @@ for kmh in range(from_kmh, to_kmh + 1, stepsize):
         sd_file.write('\tESD_Bounding_Box ( -0.150000 0.000000 -0.025000 0.150000 1.900000 0.025000 )\n')
         sd_file.write(')\n')
     bpy.ops.export.msts_s(filepath=s_filepath)
-    replaceAll(s_filepath, "%s.ace" % (material), "%s.ace" % (filename))
+    replace_text_in_file(s_filepath, "%s.ace" % (material), "%s.ace" % (filename))
