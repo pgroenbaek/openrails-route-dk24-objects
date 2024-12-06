@@ -1,14 +1,9 @@
-# Exports DK24 milepost textures as .png from GIMP 2.0 and bulk converts them to .ace via AceIt.
+# Exports DK24 milepost textures as .png from GIMP 2.0 and converts them to .ace via AceIt.
 
 import os
 import copy
 import subprocess
 from gimpfu import *
-
-def to_filename(signnumber):
-    path_name = copy.deepcopy(signnumber)
-    path_name = path_name.replace("-", "")
-    return path_name
 
 def ensure_directory_exists(path):
     if not os.path.exists(path):

@@ -6,9 +6,9 @@ import subprocess
 from gimpfu import *
 
 def to_filename(signnumber):
-    path_name = copy.deepcopy(signnumber)
-    path_name = path_name.replace("-", "")
-    return path_name
+    name = copy.deepcopy(signnumber)
+    name = name.replace("-", "")
+    return name
 
 def ensure_directory_exists(path):
     if not os.path.exists(path):
