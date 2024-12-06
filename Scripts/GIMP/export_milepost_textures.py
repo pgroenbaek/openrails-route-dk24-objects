@@ -13,7 +13,7 @@ def ensure_file_exists(path):
     with open(path, 'w') as f:
         pass
 
-def find_image(image, textlayer_name):
+def find_image(image_name):
     return filter(lambda x: x.name == image_name, gimp.image_list())[0]
 
 def find_textlayer(image, textlayer_name):
