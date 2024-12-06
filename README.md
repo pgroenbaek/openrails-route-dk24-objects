@@ -3,7 +3,7 @@
 
 ![Denmark 2024](./DK24_small.png)
 
-Custom objects for the [Denmark 2024 Open Rails route](https://github.com/pgroenbaek/openrails-route-dk24).
+Blender models and textures for the [Denmark 2024 Open Rails route](https://github.com/pgroenbaek/openrails-route-dk24).
 
 ## License:
 
