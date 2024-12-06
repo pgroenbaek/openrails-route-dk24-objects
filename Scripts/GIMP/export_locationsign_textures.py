@@ -5,18 +5,17 @@ import copy
 import subprocess
 from gimpfu import *
 
-def to_filename(signnumber):
-    path_name = copy.deepcopy(signnumber)
-    path_name = copy.deepcopy(location)
-    path_name = path_name.replace("Æ", "Ae")
-    path_name = path_name.replace("æ", "ae")
-    path_name = path_name.replace("Ø", "Oe")
-    path_name = path_name.replace("ø", "oe")
-    path_name = path_name.replace("Å", "Aa")
-    path_name = path_name.replace("å", "aa")
-    path_name = path_name.replace(" ", "")
-    path_name = path_name.replace(".", "")
-    return path_name
+def to_filename(location):
+    name = copy.deepcopy(location)
+    name = name.replace("Æ", "Ae")
+    name = name.replace("æ", "ae")
+    name = name.replace("Ø", "Oe")
+    name = name.replace("ø", "oe")
+    name = name.replace("Å", "Aa")
+    name = name.replace("å", "aa")
+    name = name.replace(" ", "")
+    name = name.replace(".", "")
+    return name
 
 def ensure_directory_exists(path):
     if not os.path.exists(path):
@@ -63,7 +62,7 @@ ensure_directory_exists(export_path)
 image = find_image(image_name)
 textlayer_l = find_textlayer(image, textlayer_name_l)
 
-for n in marker_numbers:
+for location in locations:
     texture_name = "PGA_DKSign_Location_%s" % (to_filename(location))
     png_filepath = "%s\\%s.png" % (export_path, texture_name)
     ace_filepath = "%s\\%s.ace" % (export_path, texture_name)
