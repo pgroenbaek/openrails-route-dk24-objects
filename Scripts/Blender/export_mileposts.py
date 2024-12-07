@@ -30,7 +30,7 @@ def export_s_file(file_path):
 
 from_km = 0
 to_km = 249
-material = "PGA_DKMilepost_x_y"
+material_name = "PGA_DKMilepost_x_y"
 texture_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost"
 export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost\\Export"
 
@@ -45,4 +45,4 @@ for km in range(from_km, to_km + 1):
 
         export_sd_file(sd_filepath, shape_name)
         export_s_file(s_filepath)
-        replace_text_in_file(s_filepath, "%s.ace" % (material), "%s.ace" % (texture_name))
+        replace_text_in_file(s_filepath, "%s.ace" % (material_name), "%s.ace" % (texture_name))
