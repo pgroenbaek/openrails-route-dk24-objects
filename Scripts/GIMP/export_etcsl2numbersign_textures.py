@@ -75,8 +75,7 @@ for n in marker_numbers:
     png_filepath = "%s\\%s.png" % (export_path, texture_name)
     ace_filepath = "%s\\%s.ace" % (export_path, texture_name)
 
-    text = "%s" % (n)
-    set_textlayer_text(textlayer_n, text, font="NimbusSanL Bold", font_size=120, letter_spacing=-4.0, color=gimpcolor.RGB(0,0,0))
+    set_textlayer_text(textlayer_n, n, font="NimbusSanL Bold", font_size=120, letter_spacing=-4.0, color=gimpcolor.RGB(0,0,0))
 
     ensure_file_exists(png_filepath)
 
