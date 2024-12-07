@@ -48,7 +48,7 @@ locations = ["Aarup", "Borup", "Ejby", "Elmelund", "Fjenneslev", "Forlev",
     "København H", "København G", "Korsør", "Marslev", "Middelfart", "Nyborg",
     "Odense", "Østerport", "Ringsted", "Roskilde", "Slagelse", "Snoghøj", "Sorø",
     "Sprogø", "Taulov", "Tommerup", "Ullerslev", "Valby", "Viby Sj.", "Vigerslev"]
-material = "PGA_DKSign_Location_x"
+material_name = "PGA_DKSign_Location_x"
 export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKSign\\Location\\Export"
 
 ensure_directory_exists(export_path)
@@ -61,4 +61,4 @@ for location in locations:
 
     export_sd_file(sd_filepath, shape_name)
     export_s_file(s_filepath)
-    replace_text_in_file(s_filepath, "%s.ace" % (material), "%s.ace" % (texture_name))
+    replace_text_in_file(s_filepath, "%s.ace" % (material_name), "%s.ace" % (texture_name))
