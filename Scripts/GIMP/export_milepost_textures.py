@@ -55,8 +55,8 @@ for km in range(from_km, to_km + 1):
 
         text_km = "%s" % (km)
         text_m = "%s" % (m)
-        set_textlayer_text(textlayer_km, text, font="NimbusSanL Bold", font_size=110, color=gimpcolor.RGB(0,0,0))
-        set_textlayer_text(textlayer_m, text, font="NimbusSanL Bold", font_size=73, color=gimpcolor.RGB(0,0,0))
+        set_textlayer_text(textlayer_km, text_km, font="NimbusSanL Bold", font_size=110, color=gimpcolor.RGB(0,0,0))
+        set_textlayer_text(textlayer_m, text_m, font="NimbusSanL Bold", font_size=73, color=gimpcolor.RGB(0,0,0))
 
         ensure_file_exists(png_filepath)
 
