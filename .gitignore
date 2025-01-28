@@ -3,3 +3,12 @@
 **/*.ace
 **/*.blend1
 Old/*
+Scripts/DBTracks/appids.tok
+Scripts/DBTracks/coreids.tok
+Scripts/DBTracks/ffedit.cfg
+Scripts/DBTracks/ffeditc_unicode.exe
+Scripts/DBTracks/forms.hdr
+Scripts/DBTracks/loadstr.hdr
+Scripts/DBTracks/newshape.bnf
+Scripts/DBTracks/sidn.txt
+Scripts/DBTracks/worldfile.bnf
