@@ -40,7 +40,7 @@ def compress_shape(ffeditc_path, shape_file):
         subprocess.call([ffeditc_path, shape_file, "/o:" + shape_file])
 
 
-def uncompress_shape(ffeditc_path, shape_file):
+def decompress_shape(ffeditc_path, shape_file):
     if is_binary_string(open(shape_file, 'rb').read(256)):
         subprocess.call([ffeditc_path, shape_file, "/u", "/o:" + shape_file])
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         shutil.copyfile(original_sfile, converted_sfile)
         shutil.copyfile(original_sdfile, converted_sdfile)
 
-        uncompress_shape(ffeditc_path, converted_sfile)
+        decompress_shape(ffeditc_path, converted_sfile)
 
         sfile_text = read_file(converted_sfile)
         sfile_text = replace_ignorecase(sfile_text, "DB_Track2.ace", "DB_Track22.ace")
