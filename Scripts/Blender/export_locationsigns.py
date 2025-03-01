@@ -6,7 +6,20 @@ import fileinput
 import sys
 import os
 
+
 def to_filename(location):
+    """
+    Converts a given location string into a filename-friendly format.
+
+    This function replaces special Scandinavian characters with their ASCII equivalents 
+    and removes spaces and periods to create a filename-safe string.
+
+    Args:
+        location (str): The input string to convert.
+
+    Returns:
+        str: A sanitized string suitable for use as a filename.
+    """
     path_name = copy.deepcopy(location)
     path_name = path_name.replace("Æ", "Ae")
     path_name = path_name.replace("æ", "ae")
@@ -18,27 +31,59 @@ def to_filename(location):
     path_name = path_name.replace(".", "")
     return path_name
 
+
 def replace_text_in_file(file_path, search_exp, replace_exp):
+    """
+    Replaces all occurrences of a given text in a file with a new text.
+
+    Args:
+        file_path (str): The path to the file to modify.
+        search_exp (str): The text to search for in the file.
+        replace_exp (str): The text to replace the search expression with.
+    """
     with open(file_path, 'r', encoding='utf-16') as file:
       file_text = file.read()
     file_text = file_text.replace(search_exp, replace_exp)
     with open(file_path, 'w', encoding='utf-16') as file:
       file.write(file_text)
 
+
 def ensure_directory_exists(path):
+    """
+    Ensures that a directory exists by creating it if necessary.
+
+    Args:
+        path (str): The directory path to check/create.
+    """
     if not os.path.exists(path):
         os.makedirs(path)
 
-def export_sd_file(file_path, shape_name):
+
+def export_sd_file(file_path, shape_name, bbox):
+    """
+    Exports an SD (Shape Definition) file for MSTS/ORTS.
+
+    Args:
+        file_path (str): The destination file path for the SD file.
+        shape_name (str): The name of the shape to be referenced in the file.
+        bbox (str): The bounding box parameter to be specified in the file.
+    """
     with open(file_path, 'w') as sd_file:
         sd_file.write('SIMISA@@@@@@@@@@JINX0t1t______\n')
         sd_file.write('Shape ( %s.s\n' % (shape_name))
         sd_file.write('\tESD_Detail_Level ( 0 )\n')
         sd_file.write('\tESD_Alternative_Texture ( 0 )\n')
-        sd_file.write('\tESD_Bounding_Box ( -0.500000 -0.100000 -0.010000 0.500000 0.100000 0.010833 )\n')
+        sd_file.write('\tESD_Bounding_Box ( %s )\n' % (bbox))
         sd_file.write(')\n')
 
+
 def export_s_file(file_path):
+    """
+    Exports an S (Shape) file for ORTS using Blender's MSTS exporter.
+
+    Args:
+        file_path (str): The destination file path for the exported S file.
+    """
     bpy.ops.export.msts_s(filepath=file_path)
 
 
@@ -59,6 +104,6 @@ for location in locations:
     s_filepath = "%s\\%s.s" % (export_path, shape_name)
     sd_filepath = "%s\\%s.sd" % (export_path, shape_name)
 
-    export_sd_file(sd_filepath, shape_name)
+    export_sd_file(sd_filepath, shape_name, "-0.500000 -0.100000 -0.010000 0.500000 0.100000 0.010833")
     export_s_file(s_filepath)
     replace_text_in_file(s_filepath, "%s.ace" % (material_name), "%s.ace" % (texture_name))
