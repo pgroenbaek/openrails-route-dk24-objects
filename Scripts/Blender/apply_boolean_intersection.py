@@ -3,6 +3,25 @@
 import bpy
 
 def apply_boolean_intersection():
+    """
+    Applies a Boolean intersection operation to selected mesh objects in Blender.
+
+    This function:
+    - Ensures at least two objects are selected.
+    - Fixes normals for all selected mesh objects before applying the Boolean operation.
+    - Applies Boolean intersection modifiers sequentially to keep only shared volume.
+    - Deletes all objects except the primary one after merging.
+
+    Notes:
+        - Only works on mesh objects.
+        - The first selected object acts as the base object for the intersection.
+        - The Boolean modifier is applied, and the extra objects are deleted.
+
+    Warnings:
+        - This operation is destructive; removed objects cannot be recovered.
+        - Ensure you have a backup before running.
+
+    """
     selected_objects = bpy.context.selected_objects
     if len(selected_objects) < 2:
         print("Please select at least two objects for the intersection.")
@@ -27,5 +46,6 @@ def apply_boolean_intersection():
         for obj in selected_objects[1:]:
             bpy.data.objects.remove(obj)
         print("Boolean intersection completed successfully with fixed normals.")
+
 
 apply_boolean_intersection()

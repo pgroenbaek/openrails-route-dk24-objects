@@ -3,6 +3,25 @@
 import bpy
 
 def apply_boolean_difference():
+    """
+    Applies a Boolean difference operation to selected mesh objects in Blender.
+
+    This function:
+    - Ensures at least two objects are selected.
+    - Fixes normals for all selected mesh objects before applying the Boolean operation.
+    - Applies Boolean difference modifiers sequentially to subtract objects.
+    - Deletes all objects except the primary one after performing the difference operation.
+
+    Notes:
+        - Only works on mesh objects.
+        - The first selected object acts as the base object for the difference.
+        - The Boolean modifier is applied, and the extra objects are deleted.
+
+    Warnings:
+        - This operation is destructive; removed objects cannot be recovered.
+        - Ensure you have a backup before running.
+
+    """
     selected_objects = bpy.context.selected_objects
     if len(selected_objects) < 2:
         print("Please select at least two objects for the difference.")
@@ -27,5 +46,6 @@ def apply_boolean_difference():
         for obj in selected_objects[1:]:
             bpy.data.objects.remove(obj)
         print("Boolean difference completed successfully with fixed normals.")
+
 
 apply_boolean_difference()
