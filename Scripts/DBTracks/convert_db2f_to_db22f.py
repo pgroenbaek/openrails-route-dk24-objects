@@ -104,20 +104,20 @@ def decompress_shape(ffeditc_path, shape_file):
         subprocess.call([ffeditc_path, shape_file, "/u", "/o:" + shape_file])
 
 
-def replace_ignorecase(text, search_exp, replace_exp):
+def replace_ignorecase(text, search_exp, replace_str):
     """
     Replace occurrences of a pattern in a given text, ignoring case.
 
     Parameters:
         text (str): The original text.
         search_exp (str): The regular expression pattern to search for.
-        replace_exp (str): The replacement string.
+        replace_str (str): The replacement string.
 
     Returns:
         str: The modified text with replacements applied.
     """
     pattern = re.compile(search_exp, re.IGNORECASE)
-    return pattern.sub(replace_exp, text)
+    return pattern.sub(replace_str, text)
 
 
 
