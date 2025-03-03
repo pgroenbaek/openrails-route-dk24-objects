@@ -35,8 +35,8 @@ def remove_other_materials():
     """
     Removes all materials from the Blender project except for the 'Default' material.
 
-    Notes:
-        - Use with caution, as this permanently removes ALL materials from the project that are not named "Default".
+    Warnings:
+        - Use with caution, as this operation is destructive and PERMANENTLY REMOVES ALL MATERIALS from the project that are not named "Default".
     """
     materials_to_remove = [mat for mat in bpy.data.materials if mat.name != "Default"]
     for mat in materials_to_remove:
