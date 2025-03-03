@@ -442,10 +442,10 @@ def extract_prim_state_names(sfile_lines):
 
 if __name__ == "__main__":
     shape_load_path = "..\\..\\..\\..\\Content\\PGA DK24\\GLOBAL\\SHAPES"
-    shape_converted_path = ".\\Converted_from_DB2sTun_to_DB2sTunHalfRgt"
+    shape_converted_path = ".\\Converted_from_DB1zpnt_to_V4hsRKLpnt"
     ffeditc_path = ".\\ffeditc_unicode.exe"
-    match_shapes = "DB2s_*Tun*.s"
-    ignore_shapes = ["*Pnt*", "*Frog*", "*Half*"]
+    match_shapes = "DB1z_*Pnt*.s"
+    ignore_shapes = ["*Tun*", "*EndPnt*", "*Frog*"]
     
     trackshape_names = find_trackshape_names(shape_load_path, match_shapes, ignore_shapes)
 
@@ -453,44 +453,14 @@ if __name__ == "__main__":
 
     for original_shape_name in trackshape_names:
         print("File %d of %d..." % (trackshape_names.index(original_shape_name), len(trackshape_names)))
-        
+
         original_shape_sdname = original_shape_name.replace(".s", ".sd")
-        converted_shape_name = original_shape_name.replace(".s", "_HalfRgt.s")
+        converted_shape_name = original_shape_name.replace("DB1z_", "V4hs1t_RKL_").replace("A1t", "").replace("a1t", "")
         converted_shape_sdname = converted_shape_name.replace(".s", ".sd")
         original_sfile = "%s\\%s" % (shape_load_path, original_shape_name)
         original_sdfile = "%s\\%s" % (shape_load_path, original_shape_sdname)
         converted_sfile = "%s\\%s" % (shape_converted_path, converted_shape_name)
         converted_sdfile = "%s\\%s" % (shape_converted_path, converted_shape_sdname)
-
-        track_length = None
-        curve_radius = None
-        curve_angle = None
-        center_points = None
-
-        if "strt" in original_shape_name.lower():
-            match = re.search(r'a(\d+)t(\d+)([m])', original_shape_name.lower())
-
-            if match:
-                track_length = int(match.group(2))
-
-            if track_length is not None:
-                center_points = generate_straight_centerpoints(length=track_length)
-        else:
-            match_radius = re.search(r'a(\d+)t(\d+)(r)', original_shape_name.lower()) 
-            match_angle = re.search(r'r(\d+)(d)', original_shape_name.lower())
-
-            if match_radius:
-                curve_radius = int(match_radius.group(2))
-
-            if match_angle:
-                curve_angle = -int(match_angle.group(1))
-
-            if curve_radius is not None and curve_angle is not None:
-                center_points = generate_curve_centerpoints(radius=curve_radius, degrees=curve_angle)
-        
-        if center_points is None:
-            print("Unable to parse shape name '%s', skipping..." % (original_shape_name))
-            continue
 
         shutil.copyfile(original_sfile, converted_sfile)
         shutil.copyfile(original_sdfile, converted_sdfile)
@@ -498,26 +468,100 @@ if __name__ == "__main__":
         decompress_shape(ffeditc_path, converted_sfile)
 
         sfile_text = read_file(converted_sfile)
+        sfile_text = replace_ignorecase(sfile_text, "DB_Rails1.ace", "V4_Rails1.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_Rails1w.ace", "V4_Rails1.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_Track1.ace", "V4_RKLb.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_Track1s.ace", "V4_RKLs.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_Track1w.ace", "V4_RKLb.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_Track1sw.ace", "V4_RKLs.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_TrackSfs1.ace", "V4_RKLb.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_TrackSfs1s.ace", "V4_RKLs.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_TrackSfs1w.ace", "V4_RKLb.ace")
+        sfile_text = replace_ignorecase(sfile_text, "DB_TrackSfs1sw.ace", "V4_RKLs.ace")
+
+        # RKL side
+        # [Vector((-1.4025001525878906, 0.0, -0.12800000607967377))]
+        # [Vector((-1.4125001430511475, 0.0, -0.019999999552965164))]
+        # [Vector((-2.43250036239624, 0.0, 0.009999999776482582))]
+
+        # normal track side
+        # [Vector((-1.2999999523162842, 0.0, -0.13499999046325684))]
+        # [Vector((-1.7000000476837158, 0.0, -0.13589999079704285))]
+        # [Vector((-2.5999999046325684, 0.0, 0.019999999552965164))]
+
         sfile_lines = sfile_text.split("\n")
         
+        center_points = generate_straight_centerpoints(length=100)
         point_idxs = get_point_idxs_by_prim_state_name(sfile_lines)
+        print(point_idxs.keys())
         current_point_idx = 0
 
+        # TODO: This is very experimental and by no means done yet.
         for line_idx in range(0, len(sfile_lines)):
             sfile_line = sfile_lines[line_idx]
             if "\t\tpoint (" in sfile_line.lower():
                 parts = sfile_line.split(" ")
 
-                is_tunnel_wall = current_point_idx in point_idxs["mt_tunwall"]
-                is_tunnel_roof = False if "mt_tun_roof" not in point_idxs else current_point_idx in point_idxs["mt_tun_roof"]
+                is_mt_trackbed = False if "DB_Track2w" not in point_idxs else current_point_idx in point_idxs["DB_Track2w"]
+                is_mb_trackbed = False if "DB_Track2sw" not in point_idxs else current_point_idx in point_idxs["DB_Track2sw"]
 
-                if is_tunnel_wall or is_tunnel_roof:
+                if is_mt_trackbed:
                     point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
                     closest_center_point = find_closest_center_point(point, center_points, plane='xz')
                     distance_from_center = signed_distance_from_center(point, center=closest_center_point, plane="xz")
 
-                    if distance_from_center > 0: # Right of track center
-                        parts[3] = "8.45" # Set height
+                    # Inner mt_trackbed points
+                    if distance_from_center < -1.25 and distance_from_center > -1.35:
+                        new_xz_position = get_new_position_from_trackcenter(-1.4025, point, center_points)
+                        parts[2] = str(new_xz_position[0]) # Set recalculated x
+                        parts[3] = "0.128" # Set height
+                        parts[4] = str(new_xz_position[2]) # Set recalculated z
+                    if distance_from_center > 1.25 and distance_from_center < 1.35:
+                        new_xz_position = get_new_position_from_trackcenter(1.4025, point, center_points)
+                        parts[2] = str(new_xz_position[0]) # Set recalculated x
+                        parts[3] = "0.128" # Set height
+                        parts[4] = str(new_xz_position[2]) # Set recalculated z
+                    
+                    # Outermost mt_trackbed points
+                    if distance_from_center < -1.65 and distance_from_center > -1.75:
+                        new_xz_position = get_new_position_from_trackcenter(-1.4125, point, center_points)
+                        parts[2] = str(new_xz_position[0]) # Set recalculated x
+                        parts[3] = "0.02" # Set height
+                        parts[4] = str(new_xz_position[2]) # Set recalculated z
+                    if distance_from_center > 1.65 and distance_from_center < 1.75:
+                        new_xz_position = get_new_position_from_trackcenter(1.4125, point, center_points)
+                        parts[2] = str(new_xz_position[0]) # Set recalculated x
+                        parts[3] = "0.02" # Set height
+                        parts[4] = str(new_xz_position[2]) # Set recalculated z
+                
+                if is_mb_trackbed:
+                    point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
+                    closest_center_point = find_closest_center_point(point, center_points, plane='xz')
+                    distance_from_center = signed_distance_from_center(point, center=closest_center_point, plane="xz")
+
+                    # Innermost mb_trackbed points
+                    if distance_from_center < -1.65 and distance_from_center > -1.75:
+                        new_xz_position = get_new_position_from_trackcenter(-1.4125, point, center_points)
+                        parts[2] = str(new_xz_position[0]) # Set recalculated x
+                        parts[3] = "0.02" # Set height
+                        parts[4] = str(new_xz_position[2]) # Set recalculated z
+                    if distance_from_center > 1.65 and distance_from_center < 1.75:
+                        new_xz_position = get_new_position_from_trackcenter(1.4125, point, center_points)
+                        parts[2] = str(new_xz_position[0]) # Set recalculated x
+                        parts[3] = "0.02" # Set height
+                        parts[4] = str(new_xz_position[2]) # Set recalculated z
+                    
+                    # Outermost mb_trackbed points
+                    if distance_from_center < -2.55 and distance_from_center > -2.65:
+                        new_xz_position = get_new_position_from_trackcenter(-2.4325, point, center_points)
+                        parts[2] = str(new_xz_position[0]) # Set recalculated x
+                        parts[3] = "0.01" # Set height
+                        parts[4] = str(new_xz_position[2]) # Set recalculated z
+                    if distance_from_center > 2.55 and distance_from_center < 2.65:
+                        new_xz_position = get_new_position_from_trackcenter(2.4325, point, center_points)
+                        parts[2] = str(new_xz_position[0]) # Set recalculated x
+                        parts[3] = "0.01" # Set height
+                        parts[4] = str(new_xz_position[2]) # Set recalculated z
                 
                 sfile_lines[line_idx] = " ".join(parts)
                 current_point_idx += 1
