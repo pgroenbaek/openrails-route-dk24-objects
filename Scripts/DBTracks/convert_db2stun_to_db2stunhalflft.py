@@ -270,20 +270,23 @@ def distance_along_track(point, center_points):
 
 def get_curve_point_from_angle(radius, angle_degrees):
     """
-    Compute the (x, y, z) position given an angle from the start of the track.
+    Compute the (x, y, z) center position given an angle from the start of the track.
 
     Parameters:
-    - radius: Radius of the railway track curve.
-    - angle_degrees: Angle from the starting position (0 degrees).
+    - radius (float): Radius of the railway track curve.
+    - angle_degrees (float): Angle from the starting position (0 degrees).
 
     Returns:
     - np.array([x, y, z]): The position in 3D space.
     """
     theta = np.radians(angle_degrees)
-    x = radius * np.cos(theta)
-    y = radius * np.sin(theta)
-    z = 0
+    z = radius * np.sin(theta)
+    x = radius * (1 - np.cos(theta))
+    y = 0
 
+    if angle_degrees < 0:
+        x = -x
+    
     return np.array([x, y, z])
 
 
@@ -292,10 +295,10 @@ def get_new_position_from_angle(radius, angle_degrees, original_point, curve_cen
     Compute the new (x, y, z) position of a point given an absolute angle from the start of the curve.
 
     Parameters:
-    - radius: Radius of the railway track curve.
-    - angle_degrees: Angle from the start of the track curve (not relative to original_point).
-    - original_point: The (x, y, z) coordinate of the point to transform.
-    - curve_center: The (x, y, z) coordinate of the curve's center.
+    - radius (float): Radius of the railway track curve.
+    - angle_degrees (float): Angle from the start of the track curve (not relative to original_point).
+    - original_point (numpy.ndarray): The (x, y, z) coordinate of the point to transform.
+    - curve_center (numpy.ndarray): The (x, y, z) coordinate of the curve's center.
 
     Returns:
     - np.array([x, y, z]): The new transformed position in 3D space.
@@ -323,8 +326,8 @@ def get_new_position_from_trackcenter(signed_distance, original_point, center_po
 
     Args:
         signed_distance (float): The signed lateral distance from the track center.
-        original_point (np.array): The original (x, y, z) coordinate of the point.
-        center_points (np.array): The track center points (N, 3).
+        original_point (numpy.ndarray): The original (x, y, z) coordinate of the point.
+        center_points (numpy.ndarray): The track center points (N, 3).
 
     Returns:
         np.array([x, y, z]): The new transformed position in 3D space.

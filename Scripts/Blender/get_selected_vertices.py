@@ -6,9 +6,6 @@ def get_selected_vertices():
 
     This function temporarily switches the object to 'OBJECT' mode to access vertex selection data, 
     collects the coordinates of all selected vertices, prints them, and then restores the original mode.
-
-    Returns:
-        None
     """
     mode = bpy.context.active_object.mode
     bpy.ops.object.mode_set(mode='OBJECT')
