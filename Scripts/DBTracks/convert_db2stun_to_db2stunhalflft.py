@@ -125,15 +125,15 @@ def replace_ignorecase(text, search_exp, replace_str):
 
 def generate_straight_centerpoints(length, num_points=1000, start_point=np.array([0, 0, 0])):
     """
-    Generate centerpoints for a straight railway track in 3D space.
+    Generate center points for a straight track in 3D space.
 
     Parameters:
-    - length: Length of the straight track.
+    - length: Length of the straight track in meters.
     - num_points: Number of points to generate along the track.
     - start_point: The starting point of the track in 3D space (default is the origin [0, 0, 0]).
 
     Returns:
-    - np.array of shape (num_points, 3): Railway track points along the straight track in 3D space.
+    - np.array of shape (num_points, 3): Center points along the straight track in 3D space.
     """
     z = np.linspace(start_point[0], start_point[0] + length, num_points)
     x = np.full_like(z, start_point[1])
@@ -147,12 +147,12 @@ def generate_curve_centerpoints(radius, degrees, num_points=1000):
     Generate center points of a curve in 3D space, curving in the X-Z plane.
 
     Parameters:
-    - radius: Radius of the curve (meters).
+    - radius: Radius of the curve in meters.
     - degrees: Total angle of the curve in degrees (negative = left curve, positive = right curve).
     - num_points: Number of points to generate along the curve.
 
     Returns:
-    - np.array of shape (num_points, 3): Railway track points in 3D space with positive z-values.
+    - np.array of shape (num_points, 3): Center points in 3D space with positive z-values.
     """
     theta = np.radians(np.linspace(0, abs(degrees), num_points))
 
@@ -173,7 +173,7 @@ def find_closest_center_point(point_along_track, center_points, plane='xz'):
 
     Args:
         point_along_track (numpy.ndarray): A 3D coordinate (x, y, z) representing a point somewhere on the track.
-        center_points (numpy.ndarray): A 2D array of points (num_points, 3), each representing a centerpoint along the track.
+        center_points (numpy.ndarray): A 2D array of points (num_points, 3), each representing a center point along the track.
         plane (str, optional): The plane to project onto ('xy' or 'xz'). Defaults to 'xz'.
     
     Returns:
@@ -197,16 +197,16 @@ def find_closest_center_point(point_along_track, center_points, plane='xz'):
 
 def signed_distance_from_center(point, center=np.array([0, 0, 0]), plane="xz"):
     """
-    Computes the signed distance of a point from a given center in the specified plane.
+    Computes the signed distance of a point from a given track center point in the specified plane.
 
     Args:
         point (numpy.ndarray): A 3D coordinate (x, y, z) representing the point.
-        center (numpy.ndarray, optional): A 3D coordinate (x, y, z) representing the center. 
+        center (numpy.ndarray, optional): A 3D coordinate (x, y, z) representing the track center point. 
                                           Defaults to (0, 0, 0).
         plane (str, optional): The axis or plane to consider ('x', 'y', 'xy', 'xz', or 'z'). Defaults to 'xz'.
 
     Returns:
-        float: The signed distance of the point from the center in the specified plane.
+        float: The signed distance of the point from the track center point in the specified plane.
     """
     if plane == "x":
         point_proj = np.array([point[0], 0, 0])
@@ -241,16 +241,16 @@ def signed_distance_from_center(point, center=np.array([0, 0, 0]), plane="xz"):
 
 def distance_along_track(point, center_points):
     """
-    Computes the distance along a railway track to the closest point on the track.
+    Computes the distance along the track center to the closest center point on the track.
 
     Args:
         point (numpy.ndarray): A 2D or 3D coordinate (x, y, [z]) representing the point.
-        center_points (numpy.ndarray): A (N, 2) or (N, 3) array representing the center track points.
+        center_points (numpy.ndarray): A (N, 2) or (N, 3) array representing the track center points.
 
     Returns:
         tuple:
             - float: The cumulative distance along the track to the closest center point.
-            - numpy.ndarray: The closest track point on the railway.
+            - numpy.ndarray: The closest track center point.
     """
     tck, _ = splprep(center_points.T, s=0)
     num_samples = 1000
@@ -317,6 +317,42 @@ def get_new_position_from_angle(radius, angle_degrees, original_point, curve_cen
     return new_position
 
 
+def get_new_position_from_trackcenter(signed_distance, original_point, center_points):
+    """
+    Compute the new (x, y, z) position of a point given a new distance from the closest track center.
+
+    Args:
+        signed_distance (float): The signed lateral distance from the track center.
+        original_point (np.array): The original (x, y, z) coordinate of the point.
+        center_points (np.array): The track center points (N, 3).
+
+    Returns:
+        np.array([x, y, z]): The new transformed position in 3D space.
+    """
+    closest_center = find_closest_center_point(point, center_points, plane="xz")
+
+    tck, _ = splprep(center_points.T, s=0)
+    num_samples = 1000
+    u_values = np.linspace(0, 1, num_samples)
+    spline_points = np.array(splev(u_values, tck)).T
+
+    tree = KDTree(spline_points)
+    _, index = tree.query(closest_center)
+
+    if index < len(spline_points) - 1:
+        tangent_vector = spline_points[index + 1] - spline_points[index]
+    else:
+        tangent_vector = spline_points[index] - spline_points[index - 1]
+    
+    tangent_vector[1] = 0
+    tangent_vector /= np.linalg.norm(tangent_vector)
+
+    lateral_vector = np.array([-tangent_vector[2], 0, tangent_vector[0]])
+
+    new_position = closest_center + signed_distance * lateral_vector
+    return new_position
+
+
 def get_point_idxs_by_prim_state_name(sfile_lines):
     """
     Extracts and organizes point indices by their associated prim_state names from a given list of shape file lines.
@@ -338,7 +374,7 @@ def get_point_idxs_by_prim_state_name(sfile_lines):
     processing_primitives = False
     collecting_vertex_idxs = False
     current_vertex_indices = []
-    vertices_map = {}
+    vertices_map = []
 
     prim_state_names = extract_prim_state_names(sfile_lines)
 
