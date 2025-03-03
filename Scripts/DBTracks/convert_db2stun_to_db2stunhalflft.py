@@ -123,7 +123,7 @@ def replace_ignorecase(text, search_exp, replace_str):
     return pattern.sub(replace_str, text)
 
 
-def generate_straight_points(length, num_points=1000, start_point=np.array([0, 0, 0])):
+def generate_straight_centerpoints(length, num_points=1000, start_point=np.array([0, 0, 0])):
     """
     Generate centerpoints for a straight railway track in 3D space.
 
@@ -142,7 +142,7 @@ def generate_straight_points(length, num_points=1000, start_point=np.array([0, 0
     return np.vstack((x, y, z)).T
 
 
-def generate_curve_points(radius, degrees, num_points=1000):
+def generate_curve_centerpoints(radius, degrees, num_points=1000):
     """
     Generate center points of a curve in 3D space, curving in the X-Z plane.
 
@@ -152,18 +152,21 @@ def generate_curve_points(radius, degrees, num_points=1000):
     - num_points: Number of points to generate along the curve.
 
     Returns:
-    - np.array of shape (num_points, 3): Railway track points in 3D space.
+    - np.array of shape (num_points, 3): Railway track points in 3D space with positive z-values.
     """
-    theta = np.radians(np.linspace(0, degrees, num_points))
+    theta = np.radians(np.linspace(0, abs(degrees), num_points))
 
     z = radius * np.sin(theta)
     x = radius * (1 - np.cos(theta))
     y = np.zeros_like(x)
 
+    if degrees < 0:
+        x = -x
+
     return np.vstack((x, y, z)).T
 
 
-def find_closest_center_point(point_along_track, center_points, plane='xy'):
+def find_closest_center_point(point_along_track, center_points, plane='xz'):
     """
     Finds the closest track center point to a given point along the track, with the option 
     to compute the closest point in the specified plane (XY or XZ).
@@ -192,7 +195,7 @@ def find_closest_center_point(point_along_track, center_points, plane='xy'):
     return center_points[closest_index]
 
 
-def signed_distance_from_center(point, center=np.array([0, 0, 0]), plane="xy"):
+def signed_distance_from_center(point, center=np.array([0, 0, 0]), plane="xz"):
     """
     Computes the signed distance of a point from a given center in the specified plane.
 
@@ -200,7 +203,7 @@ def signed_distance_from_center(point, center=np.array([0, 0, 0]), plane="xy"):
         point (numpy.ndarray): A 3D coordinate (x, y, z) representing the point.
         center (numpy.ndarray, optional): A 3D coordinate (x, y, z) representing the center. 
                                           Defaults to (0, 0, 0).
-        plane (str, optional): The axis or plane to consider ('x', 'y', or 'xy'). Defaults to 'xy'.
+        plane (str, optional): The axis or plane to consider ('x', 'y', 'xy', 'xz', or 'z'). Defaults to 'xz'.
 
     Returns:
         float: The signed distance of the point from the center in the specified plane.
@@ -217,8 +220,16 @@ def signed_distance_from_center(point, center=np.array([0, 0, 0]), plane="xy"):
         point_proj = np.array([point[0], point[1], 0])
         center_proj = np.array([center[0], center[1], 0])
         reference_vector = np.array([1, 0, 0])
+    elif plane == "xz":
+        point_proj = np.array([point[0], 0, point[2]])
+        center_proj = np.array([center[0], 0, center[2]])
+        reference_vector = np.array([0, 1, 0])
+    elif plane == "z":
+        point_proj = np.array([0, 0, point[2]])
+        center_proj = np.array([0, 0, center[2]])
+        reference_vector = np.array([1, 0, 0])
     else:
-        raise ValueError("Invalid plane. Choose 'x', 'y', or 'xy'.")
+        raise ValueError("Invalid plane. Choose 'x', 'y', 'xy', 'xz', or 'z'.")
 
     vector_to_point = point_proj - center_proj
     cross = np.cross(reference_vector, vector_to_point)
@@ -276,26 +287,33 @@ def get_curve_point_from_angle(radius, angle_degrees):
     return np.array([x, y, z])
 
 
-def get_new_position_from_angle(radius, angle_degrees, original_point, center_points):
+def get_new_position_from_angle(radius, angle_degrees, original_point, curve_center):
     """
-    Compute the new (x, y, z) position of a point given an angle along the track while keeping
-    the original offset from the closest track point.
+    Compute the new (x, y, z) position of a point given an absolute angle from the start of the curve.
 
     Parameters:
     - radius: Radius of the railway track curve.
-    - angle_degrees: New angle from the start of the track.
+    - angle_degrees: Angle from the start of the track curve (not relative to original_point).
     - original_point: The (x, y, z) coordinate of the point to transform.
-    - center_points: The array of railway track points.
+    - curve_center: The (x, y, z) coordinate of the curve's center.
 
     Returns:
     - np.array([x, y, z]): The new transformed position in 3D space.
     """
-    _, closest_track_point = distance_along_track(original_point, center_points)
-    delta_xyz = original_point - closest_track_point
-    
-    new_closest_point = get_curve_point_from_angle(radius, angle_degrees)
+    theta = np.radians(angle_degrees)
+    new_closest_x = curve_center[0] + radius * np.sin(theta)
+    new_closest_z = curve_center[2] + radius * np.cos(theta)
+    new_closest_point = np.array([new_closest_x, 0, new_closest_z])
 
-    new_position = new_closest_point + delta_xyz
+    rotation_matrix = np.array([
+        [np.cos(theta), 0, np.sin(theta)],
+        [0, 1, 0],
+        [-np.sin(theta), 0, np.cos(theta)]
+    ])
+
+    rotated_offset = rotation_matrix @ original_point
+
+    new_position = new_closest_point + rotated_offset
     return new_position
 
 
@@ -405,6 +423,36 @@ if __name__ == "__main__":
         converted_sfile = "%s\\%s" % (shape_converted_path, converted_shape_name)
         converted_sdfile = "%s\\%s" % (shape_converted_path, converted_shape_sdname)
 
+        track_length = None
+        curve_radius = None
+        curve_angle = None
+        center_points = None
+
+        if "strt" in original_shape_name.lower():
+            match = re.search(r'a(\d+)t(\d+)([m])', original_shape_name.lower())
+
+            if match:
+                track_length = int(match.group(2))
+
+            if track_length is not None:
+                center_points = generate_straight_centerpoints(length=track_length)
+        else:
+            match_radius = re.search(r'a(\d+)t(\d+)(r)', original_shape_name.lower())
+            match_angle = re.search(r'r(\d+)(d)', original_shape_name.lower())
+
+            if match_radius:
+                curve_radius = int(match_radius.group(2))
+
+            if match_angle:
+                curve_angle = -int(match_angle.group(1))
+
+            if curve_radius is not None and curve_angle is not None:
+                center_points = generate_curve_centerpoints(radius=curve_radius, degrees=curve_angle)
+        
+        if center_points is None:
+            print("Unable to parse shape name '%s', skipping..." % (original_shape_name))
+            continue
+
         shutil.copyfile(original_sfile, converted_sfile)
         shutil.copyfile(original_sdfile, converted_sdfile)
 
@@ -413,37 +461,7 @@ if __name__ == "__main__":
         sfile_text = read_file(converted_sfile)
         sfile_lines = sfile_text.split("\n")
         
-        track_length = None
-        curve_radius = None
-        curve_angle = None
-        center_points = None
-
-        if "strt" in original_shape_name.lower():
-            match = re.search(r'a(\d+)t(\d+)([m|r])', original_shape_name.lower())
-
-            if match:
-                track_length = int(match.group(1))
-
-            if track_length is not None:
-                center_points = generate_straight_points(length=track_length)
-        else:
-            match_radius = re.search(r'a(\d+)t(\d+)(r)', original_shape_name.lower())
-            match_angle = re.search(r'r(\d+)(d)', original_shape_name.lower())
-
-            if match_radius:
-                curve_radius = int(match_radius.group(1))
-
-            if match_angle:
-                curve_angle = int(match_angle.group(1))
-
-            if curve_radius is not None and curve_angle is not None:
-                center_points = generate_curve_points(radius=curve_radius, degrees=curve_angle)
-        
-        if center_points is None:
-            print("Unable to parse shape name '%s', skipping..." % (original_shape_name))
-            continue
-        
-        point_idxs_by_prim_state = get_point_idxs_by_prim_state_name(sfile_lines)
+        point_idxs = get_point_idxs_by_prim_state_name(sfile_lines)
         current_point_idx = 0
 
         for line_idx in range(0, len(sfile_lines)):
@@ -451,19 +469,16 @@ if __name__ == "__main__":
             if "\t\tpoint (" in sfile_line.lower():
                 parts = sfile_line.split(" ")
 
-                is_tunnel_wall = current_point_idx in point_idxs_by_prim_state["mt_tunwall"]
-                if "mt_tun_roof" in point_idxs_by_prim_state:
-                    is_tunnel_roof = current_point_idx in point_idxs_by_prim_state["mt_tun_roof"]
-                else:
-                    is_tunnel_roof = False
+                is_tunnel_wall = current_point_idx in point_idxs["mt_tunwall"]
+                is_tunnel_roof = False if "mt_tun_roof" not in point_idxs else current_point_idx in point_idxs["mt_tun_roof"]
 
                 if is_tunnel_wall or is_tunnel_roof:
                     point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
                     closest_center_point = find_closest_center_point(point, center_points, plane='xz')
-                    distance_from_center = signed_distance_from_center(point, center=closest_center_point, plane="x")
+                    distance_from_center = signed_distance_from_center(point, center=closest_center_point, plane="xz")
 
-                    if distance_from_center > 0:
-                        parts[3] = "8.45"
+                    if distance_from_center < 0: # Left of track center
+                        parts[3] = "8.45" # Set height
                 
                 sfile_lines[line_idx] = " ".join(parts)
                 current_point_idx += 1

@@ -16,4 +16,5 @@ def get_selected_vertices():
     print(selected_verts)
     bpy.ops.object.mode_set(mode=mode)
 
+
 get_selected_vertices()
