@@ -1,13 +1,15 @@
 import tsu
 import shutil
+import re
+import numpy as np
 
 
 if __name__ == "__main__":
     shape_load_path = "..\\..\\..\\..\\Content\\PGA DK24\\GLOBAL\\SHAPES"
-    shape_converted_path = ".\\Converted_from_DB1zpnt_to_V4hsRKLpnt"
+    shape_converted_path = ".\\V4hsRKL1t"
     ffeditc_path = ".\\ffeditc_unicode.exe"
-    match_shapes = "DB1z_*Pnt*.s"
-    ignore_shapes = ["*Tun*", "*EndPnt*", "*Frog*"]
+    match_shapes = "DB1z_a1t*.s"
+    ignore_shapes = ["*Tun*", "*Pnt*", "*Frog*"]
     
     trackshape_names = tsu.find_trackshape_names(shape_load_path, match_shapes, ignore_shapes)
 
@@ -23,6 +25,36 @@ if __name__ == "__main__":
         original_sdfile = "%s\\%s" % (shape_load_path, original_shape_sdname)
         converted_sfile = "%s\\%s" % (shape_converted_path, converted_shape_name)
         converted_sdfile = "%s\\%s" % (shape_converted_path, converted_shape_sdname)
+
+        track_length = None
+        curve_radius = None
+        curve_angle = None
+        center_points = None
+
+        if "strt" in original_shape_name.lower():
+            match = re.search(r'a(\d+)t(\d+)([m])', original_shape_name.lower())
+
+            if match:
+                track_length = int(match.group(2))
+
+            if track_length is not None:
+                center_points = tsu.generate_straight_centerpoints(length=track_length)
+        else:
+            match_radius = re.search(r'a(\d+)t(\d+)(r)', original_shape_name.lower())
+            match_angle = re.search(r'r(\d+)(d)', original_shape_name.lower())
+
+            if match_radius:
+                curve_radius = int(match_radius.group(2))
+
+            if match_angle:
+                curve_angle = -int(match_angle.group(1))
+
+            if curve_radius is not None and curve_angle is not None:
+                center_points = tsu.generate_curve_centerpoints(radius=curve_radius, degrees=curve_angle)
+        
+        if center_points is None:
+            print("Unable to parse shape name '%s', skipping..." % (original_shape_name))
+            continue
 
         shutil.copyfile(original_sfile, converted_sfile)
         shutil.copyfile(original_sdfile, converted_sdfile)
@@ -53,19 +85,22 @@ if __name__ == "__main__":
 
         sfile_lines = sfile_text.split("\n")
         
-        center_points = tsu.generate_straight_centerpoints(length=100)
         point_idxs = tsu.get_point_idxs_by_prim_state_name(sfile_lines)
         uv_point_idxs = tsu.get_uv_point_idxs(sfile_lines)
         current_point_idx = 0
 
-        # TODO: This is very experimental and by no means done yet.
+        # TODO Some uv points are a bit off
         for line_idx in range(0, len(sfile_lines)):
             sfile_line = sfile_lines[line_idx]
             if "\t\tpoint (" in sfile_line.lower():
                 parts = sfile_line.split(" ")
 
-                is_mt_trackbed = False if "DB_Track2w" not in point_idxs else current_point_idx in point_idxs["DB_Track2w"]
-                is_mb_trackbed = False if "DB_Track2sw" not in point_idxs else current_point_idx in point_idxs["DB_Track2sw"]
+                is_mb_sleeperbase = False if "mb_sleeperbase" not in point_idxs else current_point_idx in point_idxs["mb_sleeperbase"]
+                is_mt_trackbed = False if "mt_trackbed" not in point_idxs else current_point_idx in point_idxs["mt_trackbed"]
+                is_mb_trackbed = False if "mb_trackbed" not in point_idxs else current_point_idx in point_idxs["mb_trackbed"]
+
+                if is_mb_sleeperbase:
+                    parts[3] = "0.120" # Not needed, so set height below slab track surface
 
                 if is_mt_trackbed:
                     point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
@@ -79,7 +114,10 @@ if __name__ == "__main__":
                         parts[3] = "0.128" # Set height
                         parts[4] = str(new_xz_position[2]) # Set recalculated z
                         u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        u_value = 0.0918
+                        if u_value == 0.6357:
+                            u_value = 0.6582
+                        elif u_value == 0.0918:
+                            u_value = 0.0693
                         tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
                     if distance_from_center > 1.25 and distance_from_center < 1.35:
                         new_xz_position = tsu.get_new_position_from_trackcenter(1.4025, point, center_points)
@@ -87,7 +125,10 @@ if __name__ == "__main__":
                         parts[3] = "0.128" # Set height
                         parts[4] = str(new_xz_position[2]) # Set recalculated z
                         u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        u_value = 0.6582
+                        if u_value == 0.1143:
+                            u_value = 0.0918
+                        elif u_value == 0.6582:
+                            u_value = 0.6807
                         tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
                     
                     # Outermost mt_trackbed points
@@ -97,7 +138,10 @@ if __name__ == "__main__":
                         parts[3] = "0.02" # Set height
                         parts[4] = str(new_xz_position[2]) # Set recalculated z
                         u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        u_value = 0.0742
+                        if u_value == 0.7158:
+                            u_value = 0.6758
+                        elif u_value == 0.0742:
+                            u_value = 0.0342
                         tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
                     if distance_from_center > 1.65 and distance_from_center < 1.75:
                         new_xz_position = tsu.get_new_position_from_trackcenter(1.4125, point, center_points)
@@ -105,7 +149,10 @@ if __name__ == "__main__":
                         parts[3] = "0.02" # Set height
                         parts[4] = str(new_xz_position[2]) # Set recalculated z
                         u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        u_value = 0.6758
+                        if u_value == 0.0342:
+                            u_value = 0.0742
+                        elif u_value == 0.6758:
+                            u_value = 0.7158
                         tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
                 
                 if is_mb_trackbed:
@@ -119,17 +166,11 @@ if __name__ == "__main__":
                         parts[2] = str(new_xz_position[0]) # Set recalculated x
                         parts[3] = "0.02" # Set height
                         parts[4] = str(new_xz_position[2]) # Set recalculated z
-                        u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        u_value = 0.6758
-                        tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
                     if distance_from_center > 1.65 and distance_from_center < 1.75:
                         new_xz_position = tsu.get_new_position_from_trackcenter(1.4125, point, center_points)
                         parts[2] = str(new_xz_position[0]) # Set recalculated x
                         parts[3] = "0.02" # Set height
                         parts[4] = str(new_xz_position[2]) # Set recalculated z
-                        u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        u_value = 0.6758
-                        tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
                     
                     # Outermost mb_trackbed points
                     if distance_from_center < -2.55 and distance_from_center > -2.65:
@@ -137,17 +178,11 @@ if __name__ == "__main__":
                         parts[2] = str(new_xz_position[0]) # Set recalculated x
                         parts[3] = "0.01" # Set height
                         parts[4] = str(new_xz_position[2]) # Set recalculated z
-                        u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        u_value = 0.8620
-                        tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
                     if distance_from_center > 2.55 and distance_from_center < 2.65:
                         new_xz_position = tsu.get_new_position_from_trackcenter(2.4325, point, center_points)
                         parts[2] = str(new_xz_position[0]) # Set recalculated x
                         parts[3] = "0.01" # Set height
                         parts[4] = str(new_xz_position[2]) # Set recalculated z
-                        u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        u_value = 0.8620
-                        tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
                 
                 sfile_lines[line_idx] = " ".join(parts)
                 current_point_idx += 1

@@ -1,14 +1,15 @@
 import tsu
-import re
 import shutil
+import re
+import numpy as np
 
 
 if __name__ == "__main__":
     shape_load_path = "..\\..\\..\\..\\Content\\PGA DK24\\GLOBAL\\SHAPES"
-    shape_converted_path = ".\\Converted_from_DB2sTun_to_DB2sTunHalfLft"
+    shape_converted_path = ".\\Tunnels_500r0_625d"
     ffeditc_path = ".\\ffeditc_unicode.exe"
-    match_shapes = "DB2s_*Tun*.s"
-    ignore_shapes = ["*Pnt*", "*Frog*", "*Half*"]
+    match_shapes = "DB*t500r5d*Tun*.s"
+    ignore_shapes = []
     
     trackshape_names = tsu.find_trackshape_names(shape_load_path, match_shapes, ignore_shapes)
 
@@ -16,9 +17,9 @@ if __name__ == "__main__":
 
     for original_shape_name in trackshape_names:
         print("File %d of %d..." % (trackshape_names.index(original_shape_name), len(trackshape_names)))
-        
+
         original_shape_sdname = original_shape_name.replace(".s", ".sd")
-        converted_shape_name = original_shape_name.replace(".s", "_HalfLft.s")
+        converted_shape_name = original_shape_name.replace("r5d", "r0_625d")
         converted_shape_sdname = converted_shape_name.replace(".s", ".sd")
         original_sfile = "%s\\%s" % (shape_load_path, original_shape_name)
         original_sdfile = "%s\\%s" % (shape_load_path, original_shape_sdname)
@@ -61,6 +62,7 @@ if __name__ == "__main__":
         tsu.decompress_shape(ffeditc_path, converted_sfile)
 
         sfile_text = tsu.read_file(converted_sfile)
+
         sfile_lines = sfile_text.split("\n")
         
         point_idxs = tsu.get_point_idxs_by_prim_state_name(sfile_lines)
@@ -71,17 +73,15 @@ if __name__ == "__main__":
             if "\t\tpoint (" in sfile_line.lower():
                 parts = sfile_line.split(" ")
 
-                is_tunnel_wall = current_point_idx in point_idxs["mt_tunwall"]
-                is_tunnel_roof = False if "mt_tun_roof" not in point_idxs else current_point_idx in point_idxs["mt_tun_roof"]
+                point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
 
-                if is_tunnel_wall or is_tunnel_roof:
-                    point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
-                    closest_center_point = tsu.find_closest_center_point(point, center_points, plane='xz')
-                    distance_from_center = tsu.signed_distance_from_center(point, center=closest_center_point, plane="xz")
-
-                    if distance_from_center < 0: # Left of track center
-                        parts[3] = "8.45" # Set height
+                distance_along_track = tsu.distance_along_curved_track(point, center_points, curve_radius, -0.625)
                 
+                if distance_along_track[0] < -0.625:
+                    new_xz_position = tsu.get_new_position_from_angle(curve_radius, -0.625, point, center_points)
+                    parts[2] = str(new_xz_position[0]) # Set recalculated x
+                    parts[4] = str(new_xz_position[2]) # Set recalculated z
+
                 sfile_lines[line_idx] = " ".join(parts)
                 current_point_idx += 1
         
