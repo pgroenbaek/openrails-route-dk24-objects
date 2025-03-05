@@ -18,11 +18,13 @@ center points and curves. It includes functions for:
 - String and text manipulation (case-insensitive replacement)
 - Geometric calculations for track center points (straight and curved track segments)
 - Closest point searches and signed distance calculations
+- Linking points to UV values and prim_state names
 - Modification of UV values
 
-This module is intended for use with existing track shapes to make adjustments on them, but this code cannot
-add/remove shape geometry. Points in the shape geometry can be repositioned, for example relative
-to the track center for both curved and straight track.
+This module is intended for use with existing track shapes to adjust them. Points in the
+shape geometry can be repositioned, for example relative to the track center or along the track
+for both curved and straight track shapes. This code cannot add/remove shape geometry, but you can
+hide things underneath the trackbed. It will also not edit how vertices are connected.
 
 Functions:
 - find_trackshape_names(shape_path, match_shapes, ignore_shapes)
@@ -60,6 +62,7 @@ Dependencies:
 Author: Peter Grønbæk Andersen (pgroenbaek)
 Date: 2025-03-04
 Version: 0.1.0
+License: GNU GPL v3
 """
 
 def find_trackshape_names(shape_path, match_shapes, ignore_shapes):
