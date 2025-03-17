@@ -1,47 +1,37 @@
-import trackshapeutils as tsu
-import shutil
 import re
-import numpy as np
-
+import os
+import trackshapeutils as tsu
 
 if __name__ == "__main__":
-    shape_load_path = "..\\..\\..\\..\\Content\\PGA DK24\\GLOBAL\\SHAPES"
-    shape_converted_path = ".\\V4hsRKL1t"
-    ffeditc_path = ".\\ffeditc_unicode.exe"
-    match_shapes = "DB1z_a1t*.s"
+    shape_load_path = "../../../../Content/PGA DK24/GLOBAL/SHAPES"
+    shape_processed_path = "./Processed/V4hsRKL"
+    ffeditc_path = "./ffeditc_unicode.exe"
+    match_shapes = ["DB1z_a1t*.s"]
     ignore_shapes = ["*Tun*", "*Pnt*", "*Frog*"]
     
-    trackshape_names = tsu.find_trackshape_names(shape_load_path, match_shapes, ignore_shapes)
+    os.makedirs(shape_processed_path, exist_ok=True)
 
-    tsu.ensure_directory_exists(shape_converted_path)
+    shape_names = tsu.find_directory_files(shape_load_path, match_shapes, ignore_shapes)
 
-    for original_shape_name in trackshape_names:
-        print("File %d of %d..." % (trackshape_names.index(original_shape_name), len(trackshape_names)))
-
-        original_shape_sdname = original_shape_name.replace(".s", ".sd")
-        converted_shape_name = original_shape_name.replace("DB1z_", "V4hs1t_RKL_").replace("A1t", "").replace("a1t", "")
-        converted_shape_sdname = converted_shape_name.replace(".s", ".sd")
-        original_sfile = "%s\\%s" % (shape_load_path, original_shape_name)
-        original_sdfile = "%s\\%s" % (shape_load_path, original_shape_sdname)
-        converted_sfile = "%s\\%s" % (shape_converted_path, converted_shape_name)
-        converted_sdfile = "%s\\%s" % (shape_converted_path, converted_shape_sdname)
+    for idx, sfile_name in enumerate(shape_names):
+        print(f"Shape {idx} of {len(shape_names)}...")
 
         track_length = None
         curve_radius = None
         curve_angle = None
-        center_points = None
+        trackcenter = None
 
-        if "strt" in original_shape_name.lower():
-            match = re.search(r'a(\d+)t(\d+)([m])', original_shape_name.lower())
+        if "strt" in sfile_name.lower():
+            match = re.search(r'a(\d+)t(\d+)([m])', sfile_name.lower())
 
             if match:
                 track_length = int(match.group(2))
 
             if track_length is not None:
-                center_points = tsu.generate_straight_centerpoints(length=track_length)
+                trackcenter = tsu.generate_straight_centerpoints(length=track_length)
         else:
-            match_radius = re.search(r'a(\d+)t(\d+)(r)', original_shape_name.lower())
-            match_angle = re.search(r'r(\d+)(d)', original_shape_name.lower())
+            match_radius = re.search(r'a(\d+)t(\d+)(r)', sfile_name.lower())
+            match_angle = re.search(r'r(\d+)(d)', sfile_name.lower())
 
             if match_radius:
                 curve_radius = int(match_radius.group(2))
@@ -50,28 +40,29 @@ if __name__ == "__main__":
                 curve_angle = -int(match_angle.group(1))
 
             if curve_radius is not None and curve_angle is not None:
-                center_points = tsu.generate_curve_centerpoints(radius=curve_radius, degrees=curve_angle)
+                trackcenter = tsu.generate_curve_centerpoints(curve_radius=curve_radius, curve_angle=curve_angle)
         
-        if center_points is None:
-            print("Unable to parse shape name '%s', skipping..." % (original_shape_name))
+        if trackcenter is None:
+            print(f"Unable to parse shape name '{sfile_name}', skipping...")
             continue
 
-        shutil.copyfile(original_sfile, converted_sfile)
-        shutil.copyfile(original_sdfile, converted_sdfile)
+        # Process .s file
+        new_sfile_name = sfile_name.replace("DB1z_", "V4hs1t_RKL_").replace("A1t", "").replace("a1t", "")
 
-        tsu.decompress_shape(ffeditc_path, converted_sfile)
+        sfile = tsu.load_shape(sfile_name, shape_load_path)
+        new_sfile = sfile.copy(new_filename=new_sfile_name, new_directory=shape_processed_path)
+        new_sfile.decompress(ffeditc_path)
 
-        sfile_text = tsu.read_file(converted_sfile)
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Rails1.ace", "V4_Rails1.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Rails1w.ace", "V4_Rails1.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Track1.ace", "V4_RKLb.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Track1s.ace", "V4_RKLs.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Track1w.ace", "V4_RKLb.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Track1sw.ace", "V4_RKLs.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_TrackSfs1.ace", "V4_RKLb.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_TrackSfs1s.ace", "V4_RKLs.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_TrackSfs1w.ace", "V4_RKLb.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_TrackSfs1sw.ace", "V4_RKLs.ace")
+        new_sfile.replace_ignorecase("DB_Rails1.ace", "V4_Rails1.ace")
+        new_sfile.replace_ignorecase("DB_Rails1w.ace", "V4_Rails1.ace")
+        new_sfile.replace_ignorecase("DB_Track1.ace", "V4_RKLb.ace")
+        new_sfile.replace_ignorecase("DB_Track1s.ace", "V4_RKLs.ace")
+        new_sfile.replace_ignorecase("DB_Track1w.ace", "V4_RKLb.ace")
+        new_sfile.replace_ignorecase("DB_Track1sw.ace", "V4_RKLs.ace")
+        new_sfile.replace_ignorecase("DB_TrackSfs1.ace", "V4_RKLb.ace")
+        new_sfile.replace_ignorecase("DB_TrackSfs1s.ace", "V4_RKLs.ace")
+        new_sfile.replace_ignorecase("DB_TrackSfs1w.ace", "V4_RKLb.ace")
+        new_sfile.replace_ignorecase("DB_TrackSfs1sw.ace", "V4_RKLs.ace")
 
         # RKL side
         # [Vector((-1.4025001525878906, 0.0, -0.12800000607967377))]
@@ -83,115 +74,108 @@ if __name__ == "__main__":
         # [Vector((-1.7000000476837158, 0.0, -0.13589999079704285))]
         # [Vector((-2.5999999046325684, 0.0, 0.019999999552965164))]
 
-        sfile_lines = sfile_text.split("\n")
+        lod_dlevels = new_sfile.get_lod_dlevels()
+        mb_sleeperbase = new_sfile.get_prim_state_by_name("mb_sleeperbase")
+        mb_trackbed = new_sfile.get_prim_state_by_name("mb_trackbed")
+        mt_trackbed = new_sfile.get_prim_state_by_name("mt_trackbed")
+
+        for lod_dlevel in lod_dlevels:
+            mb_sleeperbase_vertices = new_sfile.get_vertices_by_prim_state(lod_dlevel, mb_sleeperbase)
+            mb_trackbed_vertices = new_sfile.get_vertices_by_prim_state(lod_dlevel, mb_trackbed)
+            mt_trackbed_vertices = new_sfile.get_vertices_by_prim_state(lod_dlevel, mt_trackbed)
         
-        point_idxs = tsu.get_point_idxs_by_prim_state_name(sfile_lines)
-        uv_point_idxs = tsu.get_uv_point_idxs(sfile_lines)
-        current_point_idx = 0
+            for mb_sleeperbase_vertex in mb_sleeperbase_vertices:
+                mb_sleeperbase_vertex.point.y = 0.120 # Not needed, so set height below slab track surface
+                new_sfile.update_vertex(mb_sleeperbase_vertex)
+            
+            for mb_trackbed_vertex in mb_trackbed_vertices:
+                closest_centerpoint = tsu.find_closest_centerpoint(mb_trackbed_vertex.point, trackcenter, plane='xz')
+                distance_from_center = tsu.signed_distance_from_centerpoint(mb_trackbed_vertex.point, closest_centerpoint, plane="xz")
 
-        # TODO Some uv points are a bit off
-        for line_idx in range(0, len(sfile_lines)):
-            sfile_line = sfile_lines[line_idx]
-            if "\t\tpoint (" in sfile_line.lower():
-                parts = sfile_line.split(" ")
-
-                is_mb_sleeperbase = False if "mb_sleeperbase" not in point_idxs else current_point_idx in point_idxs["mb_sleeperbase"]
-                is_mt_trackbed = False if "mt_trackbed" not in point_idxs else current_point_idx in point_idxs["mt_trackbed"]
-                is_mb_trackbed = False if "mb_trackbed" not in point_idxs else current_point_idx in point_idxs["mb_trackbed"]
-
-                if is_mb_sleeperbase:
-                    parts[3] = "0.120" # Not needed, so set height below slab track surface
-
-                if is_mt_trackbed:
-                    point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
-                    closest_center_point = tsu.find_closest_center_point(point, center_points, plane='xz')
-                    distance_from_center = tsu.signed_distance_from_center(point, center=closest_center_point, plane="xz")
-
-                    # Second to last outermost mt_trackbed points
-                    if distance_from_center < -1.25 and distance_from_center > -1.35:
-                        new_xz_position = tsu.get_new_position_from_trackcenter(-1.4025, point, center_points)
-                        parts[2] = str(new_xz_position[0]) # Set recalculated x
-                        parts[3] = "0.128" # Set height
-                        parts[4] = str(new_xz_position[2]) # Set recalculated z
-                        u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        if u_value == 0.6357:
-                            u_value = 0.6582
-                        elif u_value == 0.0918:
-                            u_value = 0.0693
-                        tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
-                    if distance_from_center > 1.25 and distance_from_center < 1.35:
-                        new_xz_position = tsu.get_new_position_from_trackcenter(1.4025, point, center_points)
-                        parts[2] = str(new_xz_position[0]) # Set recalculated x
-                        parts[3] = "0.128" # Set height
-                        parts[4] = str(new_xz_position[2]) # Set recalculated z
-                        u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        if u_value == 0.1143:
-                            u_value = 0.0918
-                        elif u_value == 0.6582:
-                            u_value = 0.6807
-                        tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
-                    
-                    # Outermost mt_trackbed points
-                    if distance_from_center < -1.65 and distance_from_center > -1.75:
-                        new_xz_position = tsu.get_new_position_from_trackcenter(-1.4125, point, center_points)
-                        parts[2] = str(new_xz_position[0]) # Set recalculated x
-                        parts[3] = "0.02" # Set height
-                        parts[4] = str(new_xz_position[2]) # Set recalculated z
-                        u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        if u_value == 0.7158:
-                            u_value = 0.6758
-                        elif u_value == 0.0742:
-                            u_value = 0.0342
-                        tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
-                    if distance_from_center > 1.65 and distance_from_center < 1.75:
-                        new_xz_position = tsu.get_new_position_from_trackcenter(1.4125, point, center_points)
-                        parts[2] = str(new_xz_position[0]) # Set recalculated x
-                        parts[3] = "0.02" # Set height
-                        parts[4] = str(new_xz_position[2]) # Set recalculated z
-                        u_value, v_value = tsu.get_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx])
-                        if u_value == 0.0342:
-                            u_value = 0.0742
-                        elif u_value == 0.6758:
-                            u_value = 0.7158
-                        tsu.set_uv_point_value(sfile_lines, uv_point_idxs[current_point_idx], u_value, v_value)
+                # Innermost mb_trackbed points
+                if distance_from_center < -1.65 and distance_from_center > -1.75:
+                    new_position = tsu.get_new_position_from_trackcenter(-1.4125, mb_trackbed_vertex.point, trackcenter)
+                    mb_trackbed_vertex.point.x = new_position.x # Set recalculated x
+                    mb_trackbed_vertex.point.y = 0.02 # Set height
+                    mb_trackbed_vertex.point.z = new_position.z # Set recalculated z
+                    new_sfile.update_vertex(mb_trackbed_vertex)
+                if distance_from_center > 1.65 and distance_from_center < 1.75:
+                    new_position = tsu.get_new_position_from_trackcenter(1.4125, mb_trackbed_vertex.point, trackcenter)
+                    mb_trackbed_vertex.point.x = new_position.x # Set recalculated x
+                    mb_trackbed_vertex.point.y = 0.02 # Set height
+                    mb_trackbed_vertex.point.z = new_position.z # Set recalculated z
+                    new_sfile.update_vertex(mb_trackbed_vertex)
                 
-                if is_mb_trackbed:
-                    point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
-                    closest_center_point = tsu.find_closest_center_point(point, center_points, plane='xz')
-                    distance_from_center = tsu.signed_distance_from_center(point, center=closest_center_point, plane="xz")
+                # Outermost mb_trackbed points
+                if distance_from_center < -2.55 and distance_from_center > -2.65:
+                    new_position = tsu.get_new_position_from_trackcenter(-2.4325, mb_trackbed_vertex.point, trackcenter)
+                    mb_trackbed_vertex.point.x = new_position.x # Set recalculated x
+                    mb_trackbed_vertex.point.y = 0.01 # Set height
+                    mb_trackbed_vertex.point.z = new_position.z # Set recalculated z
+                    new_sfile.update_vertex(mb_trackbed_vertex)
+                if distance_from_center > 2.55 and distance_from_center < 2.65:
+                    new_position = tsu.get_new_position_from_trackcenter(2.4325, mb_trackbed_vertex.point, trackcenter)
+                    mb_trackbed_vertex.point.x = new_position.x # Set recalculated x
+                    mb_trackbed_vertex.point.y = 0.01 # Set height
+                    mb_trackbed_vertex.point.z = new_position.z # Set recalculated z
+                    new_sfile.update_vertex(mb_trackbed_vertex)
 
-                    # Innermost mb_trackbed points
-                    if distance_from_center < -1.65 and distance_from_center > -1.75:
-                        new_xz_position = tsu.get_new_position_from_trackcenter(-1.4125, point, center_points)
-                        parts[2] = str(new_xz_position[0]) # Set recalculated x
-                        parts[3] = "0.02" # Set height
-                        parts[4] = str(new_xz_position[2]) # Set recalculated z
-                    if distance_from_center > 1.65 and distance_from_center < 1.75:
-                        new_xz_position = tsu.get_new_position_from_trackcenter(1.4125, point, center_points)
-                        parts[2] = str(new_xz_position[0]) # Set recalculated x
-                        parts[3] = "0.02" # Set height
-                        parts[4] = str(new_xz_position[2]) # Set recalculated z
-                    
-                    # Outermost mb_trackbed points
-                    if distance_from_center < -2.55 and distance_from_center > -2.65:
-                        new_xz_position = tsu.get_new_position_from_trackcenter(-2.4325, point, center_points)
-                        parts[2] = str(new_xz_position[0]) # Set recalculated x
-                        parts[3] = "0.01" # Set height
-                        parts[4] = str(new_xz_position[2]) # Set recalculated z
-                    if distance_from_center > 2.55 and distance_from_center < 2.65:
-                        new_xz_position = tsu.get_new_position_from_trackcenter(2.4325, point, center_points)
-                        parts[2] = str(new_xz_position[0]) # Set recalculated x
-                        parts[3] = "0.01" # Set height
-                        parts[4] = str(new_xz_position[2]) # Set recalculated z
+            for mt_trackbed_vertex in mt_trackbed_vertices:
+                closest_centerpoint = tsu.find_closest_centerpoint(mt_trackbed_vertex.point, trackcenter, plane='xz')
+                distance_from_center = tsu.signed_distance_from_centerpoint(mt_trackbed_vertex.point, closest_centerpoint, plane="xz")
+
+                # Second to last outermost mt_trackbed points
+                if distance_from_center < -1.25 and distance_from_center > -1.35:
+                    new_position = tsu.get_new_position_from_trackcenter(-1.4025, mt_trackbed_vertex.point, trackcenter)
+                    mt_trackbed_vertex.point.x = new_position.x # Set recalculated x
+                    mt_trackbed_vertex.point.y = 0.128 # Set height
+                    mt_trackbed_vertex.point.z = new_position.z # Set recalculated z
+                    if mt_trackbed_vertex.uv_point.u == 0.6357:
+                        mt_trackbed_vertex.uv_point.u = 0.6582
+                    elif mt_trackbed_vertex.uv_point.u == 0.0918:
+                        mt_trackbed_vertex.uv_point.u = 0.0693
+                    new_sfile.update_vertex(mt_trackbed_vertex)
+                if distance_from_center > 1.25 and distance_from_center < 1.35:
+                    new_position = tsu.get_new_position_from_trackcenter(1.4025, mt_trackbed_vertex.point, trackcenter)
+                    mt_trackbed_vertex.point.x = new_position.x # Set recalculated x
+                    mt_trackbed_vertex.point.y = 0.128 # Set height
+                    mt_trackbed_vertex.point.z = new_position.z # Set recalculated z
+                    if mt_trackbed_vertex.uv_point.u == 0.1143:
+                        mt_trackbed_vertex.uv_point.u = 0.0918
+                    elif mt_trackbed_vertex.uv_point.u == 0.6582:
+                        mt_trackbed_vertex.uv_point.u = 0.6807
+                    new_sfile.update_vertex(mt_trackbed_vertex)
                 
-                sfile_lines[line_idx] = " ".join(parts)
-                current_point_idx += 1
+                # Outermost mt_trackbed points
+                if distance_from_center < -1.65 and distance_from_center > -1.75:
+                    new_position = tsu.get_new_position_from_trackcenter(-1.4125, mt_trackbed_vertex.point, trackcenter)
+                    mt_trackbed_vertex.point.x = new_position.x # Set recalculated x
+                    mt_trackbed_vertex.point.y = 0.02 # Set height
+                    mt_trackbed_vertex.point.z = new_position.z # Set recalculated z
+                    if mt_trackbed_vertex.uv_point.u == 0.7158:
+                        mt_trackbed_vertex.uv_point.u = 0.6758
+                    elif mt_trackbed_vertex.uv_point.u == 0.0742:
+                        mt_trackbed_vertex.uv_point.u = 0.0342
+                    new_sfile.update_vertex(mt_trackbed_vertex)
+                if distance_from_center > 1.65 and distance_from_center < 1.75:
+                    new_position = tsu.get_new_position_from_trackcenter(1.4125, mt_trackbed_vertex.point, trackcenter)
+                    mt_trackbed_vertex.point.x = new_position.x # Set recalculated x
+                    mt_trackbed_vertex.point.y = 0.02 # Set height
+                    mt_trackbed_vertex.point.z = new_position.z # Set recalculated z
+                    if mt_trackbed_vertex.uv_point.u == 0.0342:
+                        mt_trackbed_vertex.uv_point.u = 0.0742
+                    elif mt_trackbed_vertex.uv_point.u == 0.6758:
+                        mt_trackbed_vertex.uv_point.u = 0.7158
+                    new_sfile.update_vertex(mt_trackbed_vertex)
         
-        sfile_text = "\n".join(sfile_lines)
-        tsu.write_file(converted_sfile, sfile_text)
+        new_sfile.save()
+        new_sfile.compress(ffeditc_path)
 
-        tsu.compress_shape(ffeditc_path, converted_sfile)
+        # Convert .sd file
+        sdfile_name = sfile_name.replace(".s", ".sd")
+        new_sdfile_name = new_sfile_name.replace(".s", ".sd")
 
-        sdfile_text = tsu.read_file(converted_sdfile)
-        sdfile_text = tsu.replace_ignorecase(sdfile_text, original_shape_name, converted_shape_name)
-        tsu.write_file(converted_sdfile, sdfile_text)
+        sdfile = tsu.load_file(sdfile_name, shape_load_path)
+        new_sdfile = sdfile.copy(new_filename=new_sdfile_name, new_directory=shape_processed_path)
+        new_sdfile.replace_ignorecase(sfile_name, new_sfile_name)
+        new_sdfile.save()

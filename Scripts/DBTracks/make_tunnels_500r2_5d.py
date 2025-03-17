@@ -1,47 +1,37 @@
-import trackshapeutils as tsu
-import shutil
 import re
-import numpy as np
-
+import os
+import trackshapeutils as tsu
 
 if __name__ == "__main__":
-    shape_load_path = "..\\..\\..\\..\\Content\\PGA DK24\\GLOBAL\\SHAPES"
-    shape_converted_path = ".\\Tunnels_500r2_5d"
-    ffeditc_path = ".\\ffeditc_unicode.exe"
-    match_shapes = "DB*t500r5d*Tun*.s"
+    shape_load_path = "../../../../Content/PGA DK24/GLOBAL/SHAPES"
+    shape_processed_path = "./Processed/Tun500r2_5d"
+    ffeditc_path = "./ffeditc_unicode.exe"
+    match_shapes = ["DB*t500r5d*Tun*.s"]
     ignore_shapes = []
     
-    trackshape_names = tsu.find_trackshape_names(shape_load_path, match_shapes, ignore_shapes)
+    os.makedirs(shape_processed_path, exist_ok=True)
 
-    tsu.ensure_directory_exists(shape_converted_path)
+    shape_names = tsu.find_directory_files(shape_load_path, match_shapes, ignore_shapes)
 
-    for original_shape_name in trackshape_names:
-        print("File %d of %d..." % (trackshape_names.index(original_shape_name), len(trackshape_names)))
-
-        original_shape_sdname = original_shape_name.replace(".s", ".sd")
-        converted_shape_name = original_shape_name.replace("r5d", "r2_5d")
-        converted_shape_sdname = converted_shape_name.replace(".s", ".sd")
-        original_sfile = "%s\\%s" % (shape_load_path, original_shape_name)
-        original_sdfile = "%s\\%s" % (shape_load_path, original_shape_sdname)
-        converted_sfile = "%s\\%s" % (shape_converted_path, converted_shape_name)
-        converted_sdfile = "%s\\%s" % (shape_converted_path, converted_shape_sdname)
+    for idx, sfile_name in enumerate(shape_names):
+        print(f"Shape {idx} of {len(shape_names)}...")
 
         track_length = None
         curve_radius = None
         curve_angle = None
-        center_points = None
+        trackcenter = None
 
-        if "strt" in original_shape_name.lower():
-            match = re.search(r'a(\d+)t(\d+)([m])', original_shape_name.lower())
+        if "strt" in sfile_name.lower():
+            match = re.search(r'a(\d+)t(\d+)([m])', sfile_name.lower())
 
             if match:
                 track_length = int(match.group(2))
 
             if track_length is not None:
-                center_points = tsu.generate_straight_centerpoints(length=track_length)
+                trackcenter = tsu.generate_straight_centerpoints(length=track_length)
         else:
-            match_radius = re.search(r'a(\d+)t(\d+)(r)', original_shape_name.lower())
-            match_angle = re.search(r'r(\d+)(d)', original_shape_name.lower())
+            match_radius = re.search(r'a(\d+)t(\d+)(r)', sfile_name.lower())
+            match_angle = re.search(r'r(\d+)(d)', sfile_name.lower())
 
             if match_radius:
                 curve_radius = int(match_radius.group(2))
@@ -50,46 +40,42 @@ if __name__ == "__main__":
                 curve_angle = -int(match_angle.group(1))
 
             if curve_radius is not None and curve_angle is not None:
-                center_points = tsu.generate_curve_centerpoints(radius=curve_radius, degrees=curve_angle)
+                trackcenter = tsu.generate_curve_centerpoints(curve_radius=curve_radius, curve_angle=curve_angle)
         
-        if center_points is None:
-            print("Unable to parse shape name '%s', skipping..." % (original_shape_name))
+        if trackcenter is None:
+            print(f"Unable to parse shape name '{sfile_name}', skipping...")
             continue
-
-        shutil.copyfile(original_sfile, converted_sfile)
-        shutil.copyfile(original_sdfile, converted_sdfile)
-
-        tsu.decompress_shape(ffeditc_path, converted_sfile)
-
-        sfile_text = tsu.read_file(converted_sfile)
-
-        sfile_lines = sfile_text.split("\n")
         
-        point_idxs = tsu.get_point_idxs_by_prim_state_name(sfile_lines)
-        current_point_idx = 0
+        # Process .s file
+        new_sfile_name = sfile_name.replace("r5d", "r2_5d")
 
-        for line_idx in range(0, len(sfile_lines)):
-            sfile_line = sfile_lines[line_idx]
-            if "\t\tpoint (" in sfile_line.lower():
-                parts = sfile_line.split(" ")
-
-                point = np.array([float(parts[2]), float(parts[3]), float(parts[4])])
-
-                distance_along_track = tsu.distance_along_curved_track(point, center_points, curve_radius, -2.5)
-                
-                if distance_along_track[0] < -2.5:
-                    new_xz_position = tsu.get_new_position_from_angle(curve_radius, -2.5, point, center_points)
-                    parts[2] = str(new_xz_position[0]) # Set recalculated x
-                    parts[4] = str(new_xz_position[2]) # Set recalculated z
-
-                sfile_lines[line_idx] = " ".join(parts)
-                current_point_idx += 1
+        sfile = tsu.load_shape(sfile_name, shape_load_path)
+        new_sfile = sfile.copy(new_filename=new_sfile_name, new_directory=shape_processed_path)
+        new_sfile.decompress(ffeditc_path)
         
-        sfile_text = "\n".join(sfile_lines)
-        tsu.write_file(converted_sfile, sfile_text)
+        lod_dlevels = new_sfile.get_lod_dlevels()
+        for lod_dlevel in lod_dlevels:
+            subobject_idxs = new_sfile.get_subobject_idxs_in_lod_dlevel(lod_dlevel)
 
-        tsu.compress_shape(ffeditc_path, converted_sfile)
+            for subobject_idx in subobject_idxs:
+                vertices_in_subobject = new_sfile.get_vertices_in_subobject(lod_dlevel, subobject_idx)
 
-        sdfile_text = tsu.read_file(converted_sdfile)
-        sdfile_text = tsu.replace_ignorecase(sdfile_text, original_shape_name, converted_shape_name)
-        tsu.write_file(converted_sdfile, sdfile_text)
+                for vertex in vertices_in_subobject:
+                    distance_along_track = tsu.distance_along_curved_track(vertex.point, trackcenter, curve_radius, curve_angle)
+                    
+                    if distance_along_track < -2.5:
+                        new_position = tsu.get_new_position_from_angle(curve_radius, -2.5, vertex.point, trackcenter)
+                        vertex.point.x = new_position.x # Set recalculated x
+                        vertex.point.z = new_position.z # Set recalculated z
+                    
+        new_sfile.save()
+        new_sfile.compress(ffeditc_path)
+
+        # Process .sd file
+        sdfile_name = sfile_name.replace(".s", ".sd")
+        new_sdfile_name = new_sfile_name.replace(".s", ".sd")
+
+        sdfile = tsu.load_file(sdfile_name, shape_load_path)
+        new_sdfile = sdfile.copy(new_filename=new_sdfile_name, new_directory=shape_processed_path)
+        new_sdfile.replace_ignorecase(sfile_name, new_sfile_name)
+        new_sdfile.save()

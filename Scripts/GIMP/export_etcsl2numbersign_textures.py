@@ -113,28 +113,29 @@ def export_png(image, filepath):
     pdb.gimp_image_delete(export_image)
 
 
-
 marker_numbers = [x for xs in [
-    ["Ig-%03d" % (x) for x in range(56, 62 + 1)],
-    ["Avh-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Kib-%03d" % (x) for x in range(1, 64 + 1)],
-    ["Jsf-%03d" % (x) for x in range(1, 40 + 1)],
-    ["Kjn-%03d" % (x) for x in range(1, 70 + 1)],
-    ["Lel-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Bjs-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Ada-%03d" % (x) for x in range(1, 40 + 1)],
-    ["Rg-%03d" % (x) for x in range(110, 120 + 1)],
+    ["Ig-%03d" % (x) for x in range(58, 59 + 1)],
+    ["Ada-%03d" % (x) for x in range(11, 30 + 1)],
+    ["Avh-%03d" % (x) for x in range(11, 56 + 1)],
+    ["Bjs-%03d" % (x) for x in range(11, 52 + 1)],
+    ["Kib-%03d" % (x) for x in range(7, 60 + 1)],
+    ["Jsf-%03d" % (x) for x in range(11, 36 + 1)],
+    ["Kjn-%03d" % (x) for x in range(11, 65 + 1)],
+    ["Lel-%03d" % (x) for x in range(11, 53 + 1)],
+    ["Rg-%03d" % (x) for x in range(114, 115 + 1)],
+    # Guesswork for ny bane vestfyn (not real ones)
     ["Elm-%03d" % (x) for x in range(30, 40 + 1)],
-    ["Rvb-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Spb-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Kel-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Anb-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Grm-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Sdh-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Ind-%03d" % (x) for x in range(1, 60 + 1)],
-    ["Nra-%03d" % (x) for x in range(1, 60 + 1)],
+    ["Rvb-%03d" % (x) for x in range(11, 60 + 1)],
+    ["Spb-%03d" % (x) for x in range(11, 60 + 1)],
+    ["Kel-%03d" % (x) for x in range(11, 60 + 1)],
+    ["Anb-%03d" % (x) for x in range(11, 60 + 1)],
+    ["Grm-%03d" % (x) for x in range(11, 60 + 1)],
+    ["Sdh-%03d" % (x) for x in range(11, 60 + 1)],
+    ["Ind-%03d" % (x) for x in range(11, 60 + 1)],
+    ["Nra-%03d" % (x) for x in range(11, 60 + 1)],
     ["Ka-%03d" % (x) for x in range(40, 50 + 1)]
 ] for x in xs]
+
 
 image_name = "PGA_DKSign_ETCSL2Number_x.xcf"
 textlayer_name_n = "N"
