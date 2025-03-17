@@ -1,43 +1,40 @@
+import os
 import trackshapeutils as tsu
-import shutil
-
 
 if __name__ == "__main__":
-    shape_load_path = "..\\..\\..\\..\\Content\\PGA DK24\\GLOBAL\\SHAPES"
-    shape_converted_path = ".\\Converted_from_DB2f_to_DB22f"
-    ffeditc_path = ".\\ffeditc_unicode.exe"
-    match_shapes = "DB2f_*.s"
+    shape_load_path = "../../../../Content/PGA DK24/GLOBAL/SHAPES"
+    shape_processed_path = "./Processed/DB22f"
+    ffeditc_path = "./ffeditc_unicode.exe"
+    match_shapes = ["DB2f_*.s"]
     ignore_shapes = ["*Tun*", "*Pnt*", "*Frog*"]
     
-    trackshape_names = tsu.find_trackshape_names(shape_load_path, match_shapes, ignore_shapes)
+    os.makedirs(shape_processed_path, exist_ok=True)
 
-    tsu.ensure_directory_exists(shape_converted_path)
+    shape_names = tsu.find_directory_files(shape_load_path, match_shapes, ignore_shapes)
 
-    for original_shape_name in trackshape_names:
-        print("File %d of %d..." % (trackshape_names.index(original_shape_name), len(trackshape_names)))
+    for idx, sfile_name in enumerate(shape_names):
+        print(f"Shape {idx} of {len(shape_names)}...")
+        
+        # Convert .s file
+        new_sfile_name = sfile_name.replace("DB2f_", "DB22f_")
 
-        original_shape_sdname = original_shape_name.replace(".s", ".sd")
-        converted_shape_name = original_shape_name.replace("DB2f_", "DB22f_")
-        converted_shape_sdname = converted_shape_name.replace(".s", ".sd")
-        original_sfile = "%s\\%s" % (shape_load_path, original_shape_name)
-        original_sdfile = "%s\\%s" % (shape_load_path, original_shape_sdname)
-        converted_sfile = "%s\\%s" % (shape_converted_path, converted_shape_name)
-        converted_sdfile = "%s\\%s" % (shape_converted_path, converted_shape_sdname)
+        sfile = tsu.load_shape(sfile_name, shape_load_path)
+        new_sfile = sfile.copy(new_filename=new_sfile_name, new_directory=shape_processed_path)
+        new_sfile.decompress(ffeditc_path)
 
-        shutil.copyfile(original_sfile, converted_sfile)
-        shutil.copyfile(original_sdfile, converted_sdfile)
+        new_sfile.replace_ignorecase("DB_Track2.ace", "DB_Track22.ace")
+        new_sfile.replace_ignorecase("DB_Track2s.ace", "DB_Track22s.ace")
+        new_sfile.replace_ignorecase("DB_Track2w.ace", "DB_Track22w.ace")
+        new_sfile.replace_ignorecase("DB_Track2sw.ace", "DB_Track22sw.ace")
 
-        tsu.decompress_shape(ffeditc_path, converted_sfile)
+        new_sfile.save()
+        new_sfile.compress(ffeditc_path)
 
-        sfile_text = tsu.read_file(converted_sfile)
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Track2.ace", "DB_Track22.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Track2s.ace", "DB_Track22s.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Track2w.ace", "DB_Track22w.ace")
-        sfile_text = tsu.replace_ignorecase(sfile_text, "DB_Track2sw.ace", "DB_Track22sw.ace")
-        tsu.write_file(converted_sfile, sfile_text)
+        # Convert .sd file
+        sdfile_name = sfile_name.replace(".s", ".sd")
+        new_sdfile_name = new_sfile_name.replace(".s", ".sd")
 
-        tsu.compress_shape(ffeditc_path, converted_sfile)
-
-        sdfile_text = tsu.read_file(converted_sdfile)
-        sdfile_text = tsu.replace_ignorecase(sdfile_text, original_shape_name, converted_shape_name)
-        tsu.write_file(converted_sdfile, sdfile_text)
+        sdfile = tsu.load_file(sdfile_name, shape_load_path)
+        new_sdfile = sdfile.copy(new_filename=new_sdfile_name, new_directory=shape_processed_path)
+        new_sdfile.replace_ignorecase(sfile_name, new_sfile_name)
+        new_sdfile.save()
