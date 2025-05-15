@@ -2,10 +2,10 @@ import os
 import trackshapeutils as tsu
 
 if __name__ == "__main__":
-    shape_load_path = "./Unprocessed/DB2f_DynaTrax"#"../../../../Content/PGA DK24/GLOBAL/SHAPES"
-    shape_processed_path = "./Processed/DB22f_DynaTrax"#"./Processed/DB22f"
+    shape_load_path = "./Unprocessed/DB2fb_DynaTrax"#"../../../../Content/PGA DK24/GLOBAL/SHAPES"
+    shape_processed_path = "./Processed/DB22fb_DynaTrax"#"./Processed/DB22fb"
     ffeditc_path = "./ffeditc_unicode.exe"
-    match_shapes = ["DB2f_*.s"]
+    match_shapes = ["DB2fb_*.s"]
     ignore_shapes = ["*Tun*", "*Pnt*", "*Frog*"]
     
     os.makedirs(shape_processed_path, exist_ok=True)
@@ -16,7 +16,7 @@ if __name__ == "__main__":
         print(f"Shape {idx} of {len(shape_names)}...")
         
         # Convert .s file
-        new_sfile_name = sfile_name.replace("DB2f_", "DB22f_")
+        new_sfile_name = sfile_name.replace("DB2fb_", "DB22fb_")
 
         sfile = tsu.load_shape(sfile_name, shape_load_path)
         new_sfile = sfile.copy(new_filename=new_sfile_name, new_directory=shape_processed_path)

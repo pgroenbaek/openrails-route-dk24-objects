@@ -23,6 +23,7 @@ if __name__ == "__main__":
         new_sfile = sfile.copy(new_filename=new_sfile_name, new_directory=shape_processed_path)
         new_sfile.decompress(ffeditc_path)
 
+        # TODO Include textures for DB_WM1c.
         new_sfile.replace_ignorecase("DB_WL1a.ace", "DK_WL1a.ace")
         new_sfile.replace_ignorecase("DB_WL3a.ace", "DK_WL3a.ace")
         new_sfile.replace_ignorecase("DB_WM1m.ace", "DK_WM1m.ace")
@@ -41,28 +42,10 @@ if __name__ == "__main__":
             db_wm1c_vertices = new_sfile.get_vertices_by_prim_state(lod_dlevel, db_wm1c)
             rails_vertices = new_sfile.get_vertices_by_prim_state(lod_dlevel, rails)
         
+            # TODO Only remove pipes, and boxes without rods.
             for db_wm1c_vertex in db_wm1c_vertices:
                 db_wm1c_vertex.point.y = "0.05" # Set height below trackbed to hide DB_WM1c
                 new_sfile.update_vertex(db_wm1c_vertex)
-            
-            for rails_vertex in rails_vertices:
-                if 'rgt' in sfile_name.lower():
-                    if rails_vertex.point.x == 1.88105: # Right end of rod attached to DB_WM1c
-                        rails_vertex.point.x = "0.75" # Set x equal to right rail position
-                        new_sfile.update_vertex(rails_vertex)
-
-                    if 1.02 <= rails_vertex.point.x <= 1.33 and rails_vertex.point.z <= 25: # Sleeper attachments that were connected to DB_WM1c
-                        rails_vertex.point.y # Set height below trackbed to hide the sleeper attachments
-                        new_sfile.update_vertex(rails_vertex)
-                
-                elif 'lft' in sfile_name.lower():
-                    if rails_vertex.point.x == -1.88105: # Left end of rod attached to DB_WM1c
-                        rails_vertex.point.x = "-0.75" # Set x equal to left rail position
-                        new_sfile.update_vertex(rails_vertex)
-                    
-                    if -1.33 <= rails_vertex.point.x <= -1.02 and rails_vertex.point.z <= 25: # Sleeper attachments that were connected to DB_WM1c
-                        rails_vertex.point.y = "0.05" # Set height below trackbed to hide the sleeper attachments
-                        new_sfile.update_vertex(rails_vertex)
 
         new_sfile.save()
         new_sfile.compress(ffeditc_path)

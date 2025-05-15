@@ -90,7 +90,7 @@ if __name__ == "__main__":
             
             for mb_trackbed_vertex in mb_trackbed_vertices:
                 closest_centerpoint = tsu.find_closest_centerpoint(mb_trackbed_vertex.point, trackcenter, plane='xz')
-                distance_from_center = tsu.signed_distance_from_centerpoint(mb_trackbed_vertex.point, closest_centerpoint, plane="xz")
+                distance_from_center = tsu.signed_distance_between(mb_trackbed_vertex.point, closest_centerpoint, plane="xz")
 
                 # Innermost mb_trackbed points
                 if distance_from_center < -1.65 and distance_from_center > -1.75:
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
             for mt_trackbed_vertex in mt_trackbed_vertices:
                 closest_centerpoint = tsu.find_closest_centerpoint(mt_trackbed_vertex.point, trackcenter, plane='xz')
-                distance_from_center = tsu.signed_distance_from_centerpoint(mt_trackbed_vertex.point, closest_centerpoint, plane="xz")
+                distance_from_center = tsu.signed_distance_between(mt_trackbed_vertex.point, closest_centerpoint, plane="xz")
 
                 # Second to last outermost mt_trackbed points
                 if distance_from_center < -1.25 and distance_from_center > -1.35:

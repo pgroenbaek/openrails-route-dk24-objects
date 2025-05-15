@@ -62,7 +62,7 @@ if __name__ == "__main__":
         
             for vertex in vertices:
                 closest_centerpoint = tsu.find_closest_centerpoint(vertex.point, trackcenter, plane='xz')
-                distance_from_center = tsu.signed_distance_from_centerpoint(vertex.point, closest_centerpoint, plane="xz")
+                distance_from_center = tsu.signed_distance_between(vertex.point, closest_centerpoint, plane="xz")
 
                 if distance_from_center > 0: # Right of track center
                     vertex.point.y = "8.45" # Set height
