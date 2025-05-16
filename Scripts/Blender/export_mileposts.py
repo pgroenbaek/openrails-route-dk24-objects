@@ -43,10 +43,10 @@ def export_sd_file(file_path, shape_name, bbox):
     """
     with open(file_path, 'w') as sd_file:
         sd_file.write('SIMISA@@@@@@@@@@JINX0t1t______\n')
-        sd_file.write('Shape ( %s.s\n' % (shape_name))
+        sd_file.write(f'Shape ( {shape_name}.s\n')
         sd_file.write('\tESD_Detail_Level ( 0 )\n')
         sd_file.write('\tESD_Alternative_Texture ( 0 )\n')
-        sd_file.write('\tESD_Bounding_Box ( %s )\n' % (bbox))
+        sd_file.write(f'\tESD_Bounding_Box ( {bbox} )\n')
         sd_file.write(')\n')
 
 
@@ -63,18 +63,18 @@ def export_s_file(file_path):
 from_km = 0
 to_km = 249
 material_name = "PGA_DKMilepost_x_y"
-texture_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost"
-export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost\\Export"
+texture_path = "D:/Games/Open Rails/Modelling/DK24/DKMilepost"
+export_path = "D:/Games/Open Rails/Modelling/DK24/DKMilepost/Export"
 
 ensure_directory_exists(export_path)
 
 for km in range(from_km, to_km + 1):
     for m in [0, 2, 4, 6, 8]:
-        shape_name = "PGA_DKMilepost_%03d_%d" % (km, m)
-        texture_name = "PGA_DKMilepost_%03d_%d" % (km, m)
-        s_filepath = "%s\\%s.s" % (export_path, shape_name)
-        sd_filepath = "%s\\%s.sd" % (export_path, shape_name)
+        shape_name = f"PGA_DKMilepost_{km:03d}_{m}"
+        texture_name = f"PGA_DKMilepost_{km:03d}_{m}"
+        s_filepath = f"{export_path}/{shape_name}.s"
+        sd_filepath = f"{export_path}/{shape_name}.sd"
 
         export_sd_file(sd_filepath, shape_name, "-0.150000 0.000000 -0.025000 0.150000 1.900000 0.025000")
         export_s_file(s_filepath)
-        replace_text_in_file(s_filepath, "%s.ace" % (material_name), "%s.ace" % (texture_name))
+        replace_text_in_file(s_filepath, f"{material_name}.ace", f"{texture_name}.ace")
