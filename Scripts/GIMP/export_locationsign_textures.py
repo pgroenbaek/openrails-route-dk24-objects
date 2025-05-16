@@ -124,16 +124,16 @@ def export_png(image, filepath):
 
 
 
-locations = ["Aarup", "Borup", "Ejby", "Elmelund", "Fjenneslev", "Forlev",
+locations = ["Aarup", "Borup", "Ejby", "Fjenneslev", "Forlev",
     "Fredericia", "Glostrup", "Helgoland", "Hellerup", "Hjulby", "Høje Taastrup",
     "Holmstrup", "Hvidovre", "Kalvebod", "Kastrup", "Kavslunde", "Klampenborg",
-    "København H", "København G", "Korsør", "Marslev", "Middelfart", "Nyborg",
+    "København H", "København G", "Korsør", "Kværkeby", "Marslev", "Middelfart", "Nyborg",
     "Odense", "Østerport", "Ringsted", "Roskilde", "Slagelse", "Snoghøj", "Sorø",
     "Sprogø", "Taulov", "Tommerup", "Ullerslev", "Valby", "Viby Sj.", "Vigerslev"]
 image_name = "PGA_DKSign_Location_x.xcf"
 textlayer_name_l = "L"
-export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\Models\\DKSign\\ETCSL2\\TextureExport"
-aceit_path = "D:\\Games\\Open Rails\\Tools\\AceIt\\aceit.exe"
+export_path = "D:/Games/Open Rails/Modelling/DK24/Models/DKSign/ETCSL2/TextureExport"
+aceit_path = "D:/Games/Open Rails/Tools/AceIt/aceit.exe"
 
 ensure_directory_exists(export_path)
 
@@ -141,9 +141,9 @@ image = find_image(image_name)
 textlayer_l = find_textlayer(image, textlayer_name_l)
 
 for location in locations:
-    texture_name = "PGA_DKSign_Location_%s" % (to_filename(location))
-    png_filepath = "%s\\%s.png" % (export_path, texture_name)
-    ace_filepath = "%s\\%s.ace" % (export_path, texture_name)
+    texture_name = f"PGA_DKSign_Location_{to_filename(location)}"
+    png_filepath = f"{export_path}/{texture_name}.png"
+    ace_filepath = f"{export_path}/{texture_name}.ace"
 
     set_textlayer_text(textlayer_l, location, font="NimbusSanL Bold", font_size=103, letter_spacing=-2.0, color=gimpcolor.RGB(0,0,0))
 

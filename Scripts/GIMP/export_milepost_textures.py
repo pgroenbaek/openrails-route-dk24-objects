@@ -105,8 +105,8 @@ to_km = 249
 image_name = "PGA_DKMilepost_x_y.xcf"
 textlayer_name_km = "KM"
 textlayer_name_m = "M"
-export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\DKMilepost\\TextureExport"
-aceit_path = "D:\\Games\\Open Rails\\Tools\\AceIt\\aceit.exe"
+export_path = "D:/Games/Open Rails/Modelling/DK24/DKMilepost/TextureExport"
+aceit_path = "D:/Games/Open Rails/Tools/AceIt/aceit.exe"
 
 ensure_directory_exists(export_path)
 
@@ -116,12 +116,12 @@ textlayer_m = find_textlayer(image, textlayer_name_m)
 
 for km in range(from_km, to_km + 1):
     for m in [0, 2, 4, 6, 8]:
-        texture_name = "PGA_DKMilepost_%03d_%d" % (km, m)
-        png_filepath = "%s\\%s.png" % (export_path, texture_name)
-        ace_filepath = "%s\\%s.ace" % (export_path, texture_name)
+        texture_name = f"PGA_DKMilepost_{km:03d}_{m}"
+        png_filepath = f"{export_path}/{texture_name}.png"
+        ace_filepath = f"{export_path}/{texture_name}.ace"
 
-        text_km = "%s" % (km)
-        text_m = "%s" % (m)
+        text_km = str(km)
+        text_m = str(m)
         set_textlayer_text(textlayer_km, text_km, font="NimbusSanL Bold", font_size=110, color=gimpcolor.RGB(0,0,0))
         set_textlayer_text(textlayer_m, text_m, font="NimbusSanL Bold", font_size=73, color=gimpcolor.RGB(0,0,0))
 

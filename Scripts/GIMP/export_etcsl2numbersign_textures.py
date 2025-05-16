@@ -114,33 +114,22 @@ def export_png(image, filepath):
 
 
 marker_numbers = [x for xs in [
-    ["Ig-%03d" % (x) for x in range(58, 59 + 1)],
-    ["Ada-%03d" % (x) for x in range(11, 30 + 1)],
-    ["Avh-%03d" % (x) for x in range(11, 56 + 1)],
-    ["Bjs-%03d" % (x) for x in range(11, 52 + 1)],
-    ["Kib-%03d" % (x) for x in range(7, 60 + 1)],
-    ["Jsf-%03d" % (x) for x in range(11, 36 + 1)],
-    ["Kjn-%03d" % (x) for x in range(11, 65 + 1)],
-    ["Lel-%03d" % (x) for x in range(11, 53 + 1)],
-    ["Rg-%03d" % (x) for x in range(114, 115 + 1)],
-    # Guesswork for ny bane vestfyn (not real ones)
-    ["Elm-%03d" % (x) for x in range(30, 40 + 1)],
-    ["Rvb-%03d" % (x) for x in range(11, 60 + 1)],
-    ["Spb-%03d" % (x) for x in range(11, 60 + 1)],
-    ["Kel-%03d" % (x) for x in range(11, 60 + 1)],
-    ["Anb-%03d" % (x) for x in range(11, 60 + 1)],
-    ["Grm-%03d" % (x) for x in range(11, 60 + 1)],
-    ["Sdh-%03d" % (x) for x in range(11, 60 + 1)],
-    ["Ind-%03d" % (x) for x in range(11, 60 + 1)],
-    ["Nra-%03d" % (x) for x in range(11, 60 + 1)],
-    ["Ka-%03d" % (x) for x in range(40, 50 + 1)]
+    [f"Ig-{x:03d}" for x in range(58, 59 + 1)],
+    [f"Ada-{x:03d}" for x in range(11, 30 + 1)],
+    [f"Avh-{x:03d}" for x in range(11, 56 + 1)],
+    [f"Bjs-{x:03d}" for x in range(11, 52 + 1)],
+    [f"Kib-{x:03d}" for x in range(7, 60 + 1)],
+    [f"Jsf-{x:03d}" for x in range(11, 36 + 1)],
+    [f"Kjn-{x:03d}" for x in range(11, 65 + 1)],
+    [f"Lel-{x:03d}" for x in range(11, 53 + 1)],
+    [f"Rg-{x:03d}" for x in range(114, 115 + 1)],
 ] for x in xs]
 
 
 image_name = "PGA_DKSign_ETCSL2Number_x.xcf"
 textlayer_name_n = "N"
-export_path = "D:\\Games\\Open Rails\\Modelling\\DK24\\Models\\DKSign\\ETCSL2\\TextureExport"
-aceit_path = "D:\\Games\\Open Rails\\Tools\\AceIt\\aceit.exe"
+export_path = "D:/Games/Open Rails/Modelling/DK24/Models/DKSign/ETCSL2/TextureExport"
+aceit_path = "D:/Games/Open Rails/Tools/AceIt/aceit.exe"
 
 ensure_directory_exists(export_path)
 
@@ -148,9 +137,9 @@ image = find_image(image_name)
 textlayer_n = find_textlayer(image, textlayer_name_n)
 
 for n in marker_numbers:
-    texture_name = "PGA_DKSign_ETCSL2Number_%s" % (to_filename(n))
-    png_filepath = "%s\\%s.png" % (export_path, texture_name)
-    ace_filepath = "%s\\%s.ace" % (export_path, texture_name)
+    texture_name = f"PGA_DKSign_ETCSL2Number_{to_filename(n)}"
+    png_filepath = f"{export_path}/{texture_name}.png"
+    ace_filepath = f"{export_path}/{texture_name}.ace"
 
     set_textlayer_text(textlayer_n, n, font="NimbusSanL Bold", font_size=120, letter_spacing=-4.0, color=gimpcolor.RGB(0,0,0))
 
