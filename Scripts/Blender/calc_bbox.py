@@ -66,8 +66,8 @@ def calc_bbox(collection_name):
     )
     bfl = coords.min(axis=0)
     tbr = coords.max(axis=0)
-    print(f"ESD_Bounding_Box ( {bfl[0]} {bfl[2]} {bfl[1]} {tbr[0]} {tbr[2]} {tbr[1]} )")
+    print(f"ESD_Bounding_Box ( {round(bfl[0], 4)} {round(bfl[2], 4)} {round(bfl[1], 4)} {round(tbr[0], 4)} {round(tbr[2], 4)} {round(tbr[1], 4)} )")
 
 
-collection_name = "MAIN_0400"
+collection_name = "MAIN_0150"
 calc_bbox(collection_name)
