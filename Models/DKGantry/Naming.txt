@@ -1,0 +1,35 @@
+gantry types:
+	F = foundation
+	G = gallows gantry
+	H = hanging gantry
+	N = normal gantry
+	M = mast gantry
+	P = portal gantry
+	PSx = portal SicatX gantry
+	PZ = portal Z gantry
+	Sx = SicatSX gantry
+	U = Unmounted gantry
+	USx = Unmounted SicatSX gantry
+	UZ = Unmounted Z gantry
+	UW = Unmounted wire
+
+gantry subtypes:
+	b = ballast
+	d = double
+	e = empty
+	g = galvanised steel
+	h = hanging mount
+	l = long mount
+	p = portal mount
+	r = reflective band
+	s = side mount
+	t = transformer
+
+variants:
+	W = with wire
+	F = flipped
+	K/L = short/long
+	L/R/C = left/right/center
+	
+naming scheme:
+	PGA_DKGantry_{type}{subtypes}{numtracks}{trackdist}_{variant}
