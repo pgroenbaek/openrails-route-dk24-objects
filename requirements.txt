@@ -1,0 +1,4 @@
+shapeio==0.5.0b0
+shapeedit==0.5.0b0
+trackshapeutils==0.5.0b0
+pytkutils==0.1.1
