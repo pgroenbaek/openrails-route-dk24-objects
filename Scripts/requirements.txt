@@ -1,4 +1,0 @@
-shapeio==0.5.0b3
-shapeedit==0.5.0b3
-trackshapeutils==0.5.0b3
-pyffeditc==0.1.2
