@@ -1,4 +1,19 @@
-# Exports DK24 location sign .s and .sd files from Blender 4.2.
+"""
+Copyright (C) 2026 Peter Grønbæk Andersen <peter@grnbk.io>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
 
 import bpy
 import copy
@@ -94,7 +109,7 @@ locations = ["Aarup", "Borup", "Ejby", "Fjenneslev", "Forlev",
     "Odense", "Østerport", "Ringsted", "Roskilde", "Slagelse", "Snoghøj", "Sorø",
     "Sprogø", "Taulov", "Tommerup", "Ullerslev", "Valby", "Viby Sj.", "Vigerslev"]
 material_name = "PGA_DKSign_Location_x"
-export_path = "D:/Games/Open Rails/Modelling/DK24/DKSign/Location/Export"
+export_path = "D:/Games/Open Rails/Modelling/DK24/Models/DKSign/Location/Export"
 
 ensure_directory_exists(export_path)
 
@@ -103,7 +118,6 @@ for location in locations:
     texture_name = f"PGA_DKSign_Location_{to_filename(location)}"
     s_filepath = f"{export_path}/{shape_name}.s"
     sd_filepath = f"{export_path}/{shape_name}.sd"
-
-    export_sd_file(sd_filepath, shape_name, "-0.500000 -0.100000 -0.010000 0.500000 0.100000 0.010833")
+    export_sd_file(sd_filepath, shape_name, "-0.5 -0.1 -0.0092 0.5 0.1 0.0108")
     export_s_file(s_filepath)
     replace_text_in_file(s_filepath, f"{material_name}.ace", f"{texture_name}.ace")
