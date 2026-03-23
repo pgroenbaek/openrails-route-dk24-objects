@@ -31,7 +31,7 @@ profile = [
     (0.6, 0.0, 0.0),
 ]
 
-repeats_per_meter = 2.0 # Mumber of texture repeats per meter along the spline
+repeats_per_meter = 2.0 # Number of texture repeats per meter along the spline
 
 mesh = bpy.data.meshes.new("spline_mesh")
 obj = bpy.data.objects.new("SplineObject", mesh)
