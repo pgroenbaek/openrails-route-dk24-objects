@@ -21,60 +21,59 @@ from mathutils import Vector
 
 
 INPUT_FOLDER = "D:/Games/Open Rails/Content/PGA DK24/DATA/roadcenters"
-STATION_NAME = "EmbankmentTest"
+ROADCENTER_INPUT_NAME = "Test"
 
 
-def create_platform_curves(data):
+def create_carspawner_curves(data):
     """
-    Creates Blender curve objects for each platform defined in the station JSON.
+    Creates Blender curve objects for each carspawner defined in the roadcenter JSON.
 
-    Reads platform coordinate data and generates a POLY spline curve for
-    each platform, preserving the exact vertex positions.
+    Reads carspawner coordinate data and generates a POLY spline curve for
+    each carspawner, preserving the exact vertex positions.
 
     Args:
-        data (dict): Parsed JSON data containing station and platform information.
+        data (dict): Parsed JSON data containing roadcenter and carspawner information.
 
     Notes:
-        - Each platform becomes a separate Curve object.
+        - Each carspawner becomes a separate Curve object.
         - Curves are created using POLY splines to preserve straight segments.
         - Objects are linked to the active Blender collection.
     """
-    station_name = data["station_name"]
     reference_x = data["reference_x"]
     reference_y = data["reference_y"]
     reference_z = data["reference_z"]
     reference_tile_x = data["reference_tile_x"]
     reference_tile_y = data["reference_tile_y"]
-    platforms = data["platforms"]
-    for platform in platforms:
-        platform_name = platform["platform_name"]
-        platform_coords = platform["platform_coords"]
-        curve_data = bpy.data.curves.new(name=platform_name, type='CURVE')
+    carspawners = data["carspawners"]
+    for carspawner in carspawners:
+        carspawner_name = carspawner["carspawner_name"]
+        carspawner_coords = carspawner["carspawner_coords"]
+        curve_data = bpy.data.curves.new(name=carspawner_name, type='CURVE')
         curve_data.dimensions = '3D'
         curve_data.resolution_u = 12
         polyline = curve_data.splines.new('POLY')
-        polyline.points.add(len(platform_coords)-1)
-        for i, (x, y, z) in enumerate(platform_coords):
+        polyline.points.add(len(carspawner_coords)-1)
+        for i, (x, y, z) in enumerate(carspawner_coords):
             polyline.points[i].co = (x, y, z, 1)
-        curve_obj = bpy.data.objects.new(platform_name, curve_data)
+        curve_obj = bpy.data.objects.new(carspawner_name, curve_data)
         bpy.context.collection.objects.link(curve_obj)
 
 
-def load_station_json(input_folder, station_name):
+def load_roadcenter_json(input_folder, roadcenter_name):
     """
-    Loads station platform data from a JSON file.
+    Loads carspawner roadcenter data from a JSON file.
 
     Args:
-        input_folder (str): Directory containing station JSON files.
-        station_name (str): Name of the station JSON file (without extension).
+        input_folder (str): Directory containing roadcenter JSON files.
+        roadcenter_name (str): Name of the roadcenter JSON file (without extension).
 
     Returns:
-        dict: Parsed JSON data for the station.
+        dict: Parsed JSON data for the carspawner roadcenters.
     """
-    with open(f"{input_folder}/{station_name}.json", "r") as f:
+    with open(f"{input_folder}/{roadcenter_name}.json", "r") as f:
         data = json.load(f)
     return data
 
 
-data = load_station_json(INPUT_FOLDER, STATION_NAME)
-create_platform_curves(data)
+data = load_roadcenter_json(INPUT_FOLDER, ROADCENTER_INPUT_NAME)
+create_carspawner_curves(data)
