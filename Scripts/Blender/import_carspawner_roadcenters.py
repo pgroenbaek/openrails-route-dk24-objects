@@ -20,7 +20,7 @@ import json
 from mathutils import Vector
 
 
-INPUT_FOLDER = "D:/Games/Open Rails/Content/PGA DK24/DATA/trackcenters"
+INPUT_FOLDER = "D:/Games/Open Rails/Content/PGA DK24/DATA/roadcenters"
 STATION_NAME = "EmbankmentTest"
 
 
