@@ -21,24 +21,15 @@ from mathutils import Vector, Matrix
 
 # TODO: UV mapping + split materials
 
-UNDERPASS_CURVE_NAME = "Underpass"
+RWALL_CURVE_NAME = "EdgeCurve"
 
-WALL_THICKNESS = 0.7
-
-TUNNEL_PROFILE = [
-    (-3.7, -7.0, 0.0),
-    (-3.7 - WALL_THICKNESS, -7.0, 0.0),
-    (-3.7 - WALL_THICKNESS, 8 + WALL_THICKNESS, 0.0),
-    (3.7 + WALL_THICKNESS, 8 + WALL_THICKNESS, 0.0),
-    (3.7 + WALL_THICKNESS, -7.0, 0.0),
-    (3.7, -7.0, 0.0),
-    (3.7, 7.0, 0.0),
-    (1.7, 7.65, 0.0),
-    (-1.7, 7.65, 0.0),
-    (-3.7, 7.0, 0.0),
-    (-3.7, -7.0, 0.0),
+RWALL_EDGE_PROFILE = [
+    (0.1, 0.0, 0.0),
+    (0.1, 0.4, 0.0),
+    (-0.5, 0.4, 0.0),
+    (-0.5, 0.0, 0.0),
+    (0.1, 0.0, 0.0),
 ]
-
 
 def tangent_at(points, i):
     """
@@ -61,14 +52,14 @@ def tangent_at(points, i):
 
 def sweep_profile_along_curve(curve_obj, profile):
     """
-    Generates a tunnel mesh by sweeping a profile along a curve.
+    Generates a retaining wall edge mesh by sweeping a profile along a curve.
 
     Args:
         curve_obj (bpy.types.Object): Curve object defining the sweep path.
         profile (list[tuple]): Cross-section profile coordinates.
 
     Returns:
-        bpy.types.Object: Generated tunnel mesh object.
+        bpy.types.Object: Generated retaining wall edge mesh object.
 
     Notes:
         - Profile is aligned to the spline tangent.
@@ -76,9 +67,9 @@ def sweep_profile_along_curve(curve_obj, profile):
         - Geometry is cleaned and normals recalculated.
     """
     spline = curve_obj.data.splines[0]
-    mesh = bpy.data.meshes.new("Tunnel")
-    tunnel_obj = bpy.data.objects.new("Tunnel", mesh)
-    bpy.context.collection.objects.link(tunnel_obj)
+    mesh = bpy.data.meshes.new("RetainingWallEdge")
+    rwalledge_obj = bpy.data.objects.new("RetainingWallEdge", mesh)
+    bpy.context.collection.objects.link(rwalledge_obj)
     bm = bmesh.new()
     vertices_along_spline = []
     points_3d = [Vector(p.co.xyz) for p in spline.points]
@@ -110,15 +101,15 @@ def sweep_profile_along_curve(curve_obj, profile):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
     bm.free()
-    return tunnel_obj
+    return rwalledge_obj
 
 
-def build_tunnel():
+def build_rwall_edge():
     """
-    Main execution function that generates the tunnel mesh from the curve.
+    Main execution function that generates the retaining wall edge mesh from the curve.
     """
-    curve_obj = bpy.data.objects[UNDERPASS_CURVE_NAME]
-    sweep_profile_along_curve(curve_obj, TUNNEL_PROFILE)
+    curve_obj = bpy.data.objects[RWALL_CURVE_NAME]
+    sweep_profile_along_curve(curve_obj, RWALL_EDGE_PROFILE)
 
 
-build_tunnel()
+build_rwall_edge()

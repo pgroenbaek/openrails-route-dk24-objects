@@ -19,6 +19,7 @@ import bpy
 import bmesh
 from mathutils import Vector, Matrix
 
+# TODO: UV mapping + split materials
 
 OVERPASS_CURVE_NAME = "Overpass1"
 
