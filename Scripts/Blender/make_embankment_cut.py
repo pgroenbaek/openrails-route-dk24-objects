@@ -19,6 +19,7 @@ import bpy
 import bmesh
 from mathutils import Vector, Matrix
 
+# TODO: UV mapping + split materials
 
 EMBANKMENT_OBJECT_NAME = "Embankment"
 UNDERPASS_CURVE_NAME = "Underpass"
