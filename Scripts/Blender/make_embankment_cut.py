@@ -19,76 +19,68 @@ import bpy
 import bmesh
 from mathutils import Vector, Matrix
 
-# TODO: UV mapping + split materials
 
-EMBANKMENT_OBJECT_NAME = "Embankment"
-UNDERPASS_CURVE_NAME = "Underpass"
-
+SAMPLE_INTERVAL = 1.0
 WALL_THICKNESS = 0.7
+SUBDIVIDE_CUTS = 1
 
-CUT_PROFILE = [
+STANDARD_CUT_PROFILE = [
     (-3.7 - WALL_THICKNESS, -10.0 - WALL_THICKNESS),
     (-3.7 - WALL_THICKNESS, 7.9 + WALL_THICKNESS),
     (3.7 + WALL_THICKNESS, 7.9 + WALL_THICKNESS),
     (3.7 + WALL_THICKNESS, -10.0 - WALL_THICKNESS),
 ]
 
-SUBDIVIDE_CUTS = 1
+EMBANKMENT_OBJECT_NAMES = [
+    "Overpass1_Embankment",
+    "Overpass2_Embankment"
+]
+
+APPLY_CUT_PROFILES = {
+    "Underpass": STANDARD_CUT_PROFILE
+}
 
 
-def duplicate_object(obj):
+def sample_curve(curve_obj, interval=SAMPLE_INTERVAL):
     """
-    Creates a duplicate of a Blender object including its mesh data.
+    Samples points along a Blender curve at approximately fixed distance intervals.
 
     Args:
-        obj (bpy.types.Object): Object to duplicate.
+        curve_obj (bpy.types.Object): The Blender curve object to sample.
+        interval (float, optional): Approximate distance between sampled points. Defaults to SAMPLE_INTERVAL.
 
     Returns:
-        bpy.types.Object: Newly created duplicate object.
-
-    Notes:
-        - The duplicate mesh data is independent from the original.
-        - The object is linked to the current active collection.
+        list[Vector]: List of 3D points in world coordinates sampled along the curve.
     """
-    duplicate = obj.copy()
-    duplicate.data = obj.data.copy()
-    duplicate.name = obj.name + "_original"
-    bpy.context.collection.objects.link(duplicate)
-    print("Duplicated original embankment:", duplicate.name)
-    return duplicate
-
-
-def subdivide_mesh(obj, cuts):
-    """
-    Subdivides all edges of a mesh object to improve boolean stability.
-
-    Args:
-        obj (bpy.types.Object): Mesh object to subdivide.
-        cuts (int): Number of subdivision cuts.
-    """
-    me = obj.data
-    bm = bmesh.new()
-    bm.from_mesh(me)
-    bmesh.ops.subdivide_edges(
-        bm,
-        edges=bm.edges,
-        cuts=cuts,
-        use_grid_fill=True
-    )
-    bm.to_mesh(me)
-    bm.free()
+    curve = curve_obj.data
+    spline = curve.splines[0]
+    if spline.type == 'BEZIER':
+        points = [p.co for p in spline.bezier_points]
+    else:
+        points = [p.co for p in spline.points]
+    points = [curve_obj.matrix_world @ Vector(p.xyz) for p in points]
+    sampled = [points[0]]
+    accum_dist = 0.0
+    for i in range(1, len(points)):
+        seg = points[i] - points[i-1]
+        seg_len = seg.length
+        accum_dist += seg_len
+        if accum_dist >= interval:
+            sampled.append(points[i])
+            accum_dist = 0.0
+    return sampled
 
 
 def tangent_at(points, i):
     """
-    Computes a tangent vector along a polyline.
+    Computes approximate tangent vector at a point along a polyline.
 
     Args:
-        points (list[Vector]): List of spline points.
-        i (int): Index of the current point.
+        points (list[Vector]): Ordered list of 3D points.
+        i (int): Index of the point to compute tangent for.
 
     Returns:
-        Vector: Normalized tangent direction.
+        Vector: Normalized tangent vector at the specified point.
     """
     if i == 0:
         return (points[1] - points[0]).normalized()
@@ -98,34 +90,29 @@ def tangent_at(points, i):
         return (points[i+1] - points[i-1]).normalized()
 
 
-def create_tunnel_cutter(curve_obj, cut_profile):
+def create_embankment_cutter(curve_obj, cut_profile):
     """
-    Generates a cutter mesh by extruding a profile along a curve.
+    Generates a cutter mesh along a curve using a specified cross-section profile.
 
     Args:
-        curve_obj (bpy.types.Object): Curve object defining the path.
-        cut_profile (list[tuple]): 2D profile coordinates.
+        curve_obj (bpy.types.Object): Curve object along which the cutter will be generated.
+        cut_profile (list[tuple[float, float]]): 2D profile coordinates defining the cross-section of the cutter.
 
     Returns:
-        bpy.types.Object: The generated cutter mesh object.
-
-    Notes:
-        - Profile is aligned to the spline tangent at each point.
-        - Resulting geometry is fully closed and suitable for boolean operations.
+        bpy.types.Object: The generated cutter object.
     """
-    mesh = bpy.data.meshes.new("TunnelCutter")
-    cutter_obj = bpy.data.objects.new("TunnelCutter", mesh)
+    mesh = bpy.data.meshes.new("EmbankmentCutter")
+    cutter_obj = bpy.data.objects.new("EmbankmentCutter", mesh)
     bpy.context.collection.objects.link(cutter_obj)
     bm = bmesh.new()
-    spline = curve_obj.data.splines[0]
-    points_3d = [Vector(p.co.xyz) for p in spline.points]
+    points_3d = sample_curve(curve_obj)
     vertices_along = []
     for i, pt in enumerate(points_3d):
         tangent = tangent_at(points_3d, i)
         z_axis = tangent
-        up = Vector((0,0,1))
+        up = Vector((0, 0, 1))
         if abs(z_axis.dot(up)) > 0.999:
-            up = Vector((0,1,0))
+            up = Vector((0, 1, 0))
         x_axis = up.cross(z_axis).normalized()
         y_axis = z_axis.cross(x_axis).normalized()
         rot = Matrix((x_axis, y_axis, z_axis)).transposed()
@@ -136,14 +123,15 @@ def create_tunnel_cutter(curve_obj, cut_profile):
             row.append(vert)
         vertices_along.append(row)
     bm.verts.ensure_lookup_table()
-    for i in range(len(vertices_along)-1):
-        loop1 = vertices_along[i]
-        loop2 = vertices_along[i+1]
-        for j in range(len(loop1)):
-            v1 = loop1[j]
-            v2 = loop1[(j+1) % len(loop1)]
-            v3 = loop2[(j+1) % len(loop2)]
-            v4 = loop2[j]
+    for i in range(len(vertices_along) - 1):
+        ring1 = vertices_along[i]
+        ring2 = vertices_along[i + 1]
+        n = len(ring1)
+        for j in range(n):
+            v1 = ring1[j]
+            v2 = ring1[(j + 1) % n]
+            v3 = ring2[(j + 1) % n]
+            v4 = ring2[j]
             bm.faces.new([v1, v2, v3, v4])
     bm.faces.new(vertices_along[0])
     bm.faces.new(list(reversed(vertices_along[-1])))
@@ -156,7 +144,7 @@ def create_tunnel_cutter(curve_obj, cut_profile):
 
 def triangulate_mesh(obj):
     """
-    Triangulates a mesh to improve boolean solver stability.
+    Triangulates all faces of a mesh object in-place.
 
     Args:
         obj (bpy.types.Object): Mesh object to triangulate.
@@ -170,39 +158,41 @@ def triangulate_mesh(obj):
 
 def apply_boolean_cut(target_obj, cutter_obj):
     """
-    Applies a boolean difference operation using a cutter object.
+    Applies a boolean difference modifier to subtract a cutter from a target object.
 
     Args:
-        target_obj (bpy.types.Object): Object to cut.
-        cutter_obj (bpy.types.Object): Cutter mesh.
+        target_obj (bpy.types.Object): The object to be cut.
+        cutter_obj (bpy.types.Object): The cutter object used for the boolean operation.
     """
     bool_mod = target_obj.modifiers.new("EmbankmentCut", 'BOOLEAN')
     bool_mod.operation = 'DIFFERENCE'
     bool_mod.object = cutter_obj
     bool_mod.solver = 'EXACT'
     bool_mod.use_self = True
+    bool_mod.use_hole_tolerant = True
     bpy.context.view_layer.objects.active = target_obj
     bpy.ops.object.modifier_apply(modifier="EmbankmentCut")
 
 
 def build_underpass_cut():
     """
-    Main pipeline that builds and applies the underpass boolean cut.
+    Builds boolean cut meshes along predefined curves for all embankments.
 
-    Steps:
-        1. Duplicate the original embankment mesh.
-        2. Subdivide the mesh to improve boolean stability.
-        3. Generate a cutter mesh from the flyover curve.
-        4. Triangulate the cutter mesh.
-        5. Apply the boolean difference operation.
+    Notes:
+        - Iterates over curves and cut profiles defined in APPLY_CUT_PROFILES.
+        - Creates cutters using `create_embankment_cutter`, triangulates them, and applies boolean cuts.
+        - Supports multiple embankment objects and multiple profiles per curve.
     """
-    embankment_obj = bpy.data.objects[EMBANKMENT_OBJECT_NAME]
-    flyover_curve = bpy.data.objects[UNDERPASS_CURVE_NAME]
-    duplicate_object(embankment_obj)
-    subdivide_mesh(embankment_obj, SUBDIVIDE_CUTS)
-    cutter_obj = create_tunnel_cutter(flyover_curve, CUT_PROFILE)
-    triangulate_mesh(cutter_obj)
-    apply_boolean_cut(embankment_obj, cutter_obj)
+    for curve_name, cut_profiles in APPLY_CUT_PROFILES.items():
+        curve_obj = bpy.data.objects[curve_name]
+        if isinstance(cut_profiles[0], tuple) and isinstance(cut_profiles[0][0], (int, float)):
+            cut_profiles = [cut_profiles]
+        for embankment_obj_name in EMBANKMENT_OBJECT_NAMES:
+            for cut_profile in cut_profiles:
+                embankment_obj = bpy.data.objects[embankment_obj_name]
+                cutter_obj = create_embankment_cutter(curve_obj, cut_profile)
+                triangulate_mesh(cutter_obj)
+                apply_boolean_cut(embankment_obj, cutter_obj)
 
 
 build_underpass_cut()

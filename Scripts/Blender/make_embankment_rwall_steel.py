@@ -20,9 +20,9 @@ import bmesh
 from mathutils import Vector
 import math
 
-# TODO: UV mapping
+# TODO: materials + UV mapping
 
-EDGE_CURVE = "EdgeCurve"
+EDGE_CURVE = "EdgeCurveRWall2"
 UNDERPASS_CURVE = "Underpass"
 
 WALL_THICKNESS = 0.6
@@ -32,6 +32,7 @@ STEEL_ZIGZAG_AMPLITUDE = 0.2
 STEEL_STEP_LENGTH = 0.6
 
 PHASE_SEQUENCE = [2, 0, 2, 1] # 0=left, 1=right, 2=straight
+
 
 def sample_curve_eval(curve_obj):
     """
@@ -50,6 +51,7 @@ def sample_curve_eval(curve_obj):
     eval_obj.to_mesh_clear()
     return pts
 
+
 def cumulative_lengths(points):
     """
     Computes cumulative distances along a list of points.
@@ -64,6 +66,7 @@ def cumulative_lengths(points):
     for i in range(1, len(points)):
         lengths.append(lengths[-1] + (points[i] - points[i-1]).length)
     return lengths, lengths[-1]
+
 
 def sample_by_distance(points, lengths, total_length, dist):
     """
@@ -85,6 +88,7 @@ def sample_by_distance(points, lengths, total_length, dist):
             return points[i].lerp(points[i+1], t)
     return points[-1]
 
+
 def closest_point_xy(target_pt, points):
     """
     Finds the closest point in XY plane from a list of points to a target point.
@@ -105,6 +109,7 @@ def closest_point_xy(target_pt, points):
             min_dist = d
             closest = p
     return closest
+
 
 def build_steel_rwall():
     """
@@ -131,7 +136,7 @@ def build_steel_rwall():
         dist = min(i * STEEL_STEP_LENGTH, edge_total)
         edge_pt = sample_by_distance(edge_pts, edge_lengths, edge_total, dist)
         under_pt = closest_point_xy(edge_pt, under_pts)
-        steel_bottom = under_pt.z
+        steel_bottom = under_pt.z - 0.5
         concrete_bottom_z = edge_pt.z - CONCRETE_HEIGHT
         steel_top = max(concrete_bottom_z, steel_bottom)
         next_dist = min(dist + STEEL_STEP_LENGTH, edge_total)
@@ -159,6 +164,7 @@ def build_steel_rwall():
     bm.to_mesh(mesh)
     bm.free()
 
+
 def build_concrete_edge():
     """
     Builds a concrete edge retaining wall along an edge curve.
@@ -183,7 +189,7 @@ def build_concrete_edge():
     back_top = []
     for i, edge_pt in enumerate(edge_pts):
         under_pt = closest_point_xy(edge_pt, under_pts)
-        total_height = edge_pt.z - under_pt.z
+        total_height = edge_pt.z - under_pt.z + 0.5
         if total_height <= 0:
             front_bottom.append(None)
             front_top.append(None)
@@ -196,7 +202,7 @@ def build_concrete_edge():
             direction = (edge_pts[i] - edge_pts[i-1]).to_2d().normalized()
         perp = Vector((-direction.y, direction.x, 0)) * (WALL_THICKNESS / 2)
         concrete_top_z = edge_pt.z
-        concrete_bottom_z = max(edge_pt.z - CONCRETE_HEIGHT, under_pt.z)
+        concrete_bottom_z = max(edge_pt.z - CONCRETE_HEIGHT, under_pt.z - 0.5)
         fb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, concrete_bottom_z)) - perp)
         bb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, concrete_bottom_z)) + perp)
         ft = bm.verts.new(Vector((edge_pt.x, edge_pt.y, concrete_top_z)) - perp)
@@ -225,6 +231,7 @@ def build_concrete_edge():
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
     bm.free()
+
 
 build_steel_rwall()
 build_concrete_edge()

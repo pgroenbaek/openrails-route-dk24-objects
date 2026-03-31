@@ -19,12 +19,13 @@ import bpy
 import bmesh
 from mathutils import Vector
 
-# TODO: UV mapping
+# TODO: materials + UV mapping
 
-EDGE_CURVE = "EdgeCurve"
+EDGE_CURVE = "EdgeCurveRWall2"
 UNDERPASS_CURVE = "Underpass"
 
 WALL_THICKNESS = 0.6
+
 
 def sample_curve_eval(curve_obj):
     """
@@ -42,6 +43,7 @@ def sample_curve_eval(curve_obj):
     pts = [eval_obj.matrix_world @ v.co for v in mesh.vertices]
     eval_obj.to_mesh_clear()
     return pts
+
 
 def closest_point_xy(target_pt, points):
     """
@@ -63,6 +65,7 @@ def closest_point_xy(target_pt, points):
             min_dist = d
             closest = p
     return closest
+
 
 def build_concrete_rwall():
     """
@@ -99,8 +102,8 @@ def build_concrete_rwall():
         else:
             direction = (edge_pts[i] - edge_pts[i-1]).to_2d().normalized()
         perp = Vector((-direction.y, direction.x, 0)) * (WALL_THICKNESS/2)
-        fb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, under_pt.z)) - perp)
-        bb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, under_pt.z)) + perp)
+        fb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, under_pt.z - 1.0)) - perp)
+        bb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, under_pt.z - 1.0)) + perp)
         ft = bm.verts.new(Vector((edge_pt.x, edge_pt.y, edge_pt.z)) - perp)
         bt = bm.verts.new(Vector((edge_pt.x, edge_pt.y, edge_pt.z)) + perp)
         front_bottom.append(fb)
@@ -127,5 +130,6 @@ def build_concrete_rwall():
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
     bm.free()
+
 
 build_concrete_rwall()

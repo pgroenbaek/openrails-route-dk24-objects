@@ -20,20 +20,17 @@ import bmesh
 
 def selected_edges_to_curve(obj):
     """
-    Create a polyline curve from the selected edges of a mesh.
-
-    Traverses connected selected edges to determine vertex order and
-    generates a new Curve object with a POLY spline matching the edge path.
+    Converts selected edges of a mesh object into a 3D curve object.
 
     Args:
-        obj (bpy.types.Object): Mesh object containing selected edges.
+        obj (bpy.types.Object): The active mesh object with selected edges.
 
     Notes:
-        - The mesh must have edges selected in Edit Mode.
-        - If the selection contains multiple disconnected edge chains,
-          only the first traversed chain will be converted.
-        - The resulting curve uses a POLY spline, preserving sharp
-          linear segments between vertices.
+        - The function works only if the active object is a mesh.
+        - Traverses connected selected edges to form continuous chains.
+        - Each chain becomes a separate spline in the new curve.
+        - The resulting curve is linked to the current collection and named "EdgeCurve".
+        - Preserves the original object location.
     """
     if obj.type != 'MESH':
         print("Active object is not a mesh.")
@@ -43,37 +40,46 @@ def selected_edges_to_curve(obj):
     edges = [e for e in bm.edges if e.select]
     if not edges:
         print("No edges selected!")
+        bpy.ops.object.mode_set(mode='OBJECT')
         return
     adjacency = {}
     for e in edges:
         v1, v2 = e.verts
         adjacency.setdefault(v1, []).append(v2)
         adjacency.setdefault(v2, []).append(v1)
-    endpoints = [v for v, nbrs in adjacency.items() if len(nbrs) == 1]
-    if endpoints:
-        start_vert = endpoints[0]
-    else:
-        start_vert = edges[0].verts[0]
-    ordered_verts = []
     visited = set()
-    current = start_vert
-    prev = None
-    while current:
-        ordered_verts.append(current)
-        visited.add(current)
-        neighbors = [v for v in adjacency[current] if v != prev and v not in visited]
-        prev, current = current, neighbors[0] if neighbors else None
+    def traverse_chain(start):
+        chain = []
+        stack = [(start, None)]
+        while stack:
+            v, prev = stack.pop()
+            if v in visited:
+                continue
+            visited.add(v)
+            chain.append(v)
+            neighbors = [n for n in adjacency.get(v, []) if n != prev and n not in visited]
+            if neighbors:
+                stack.append((neighbors[0], v))
+        return chain
+    endpoints = [v for v, nbrs in adjacency.items() if len(nbrs) == 1]
+    chains = []
+    for ep in endpoints:
+        if ep not in visited:
+            chains.append(traverse_chain(ep))
+    for v in adjacency:
+        if v not in visited:
+            chains.append(traverse_chain(v))
     curve_data = bpy.data.curves.new("EdgeCurve", type='CURVE')
     curve_data.dimensions = '3D'
-    spline = curve_data.splines.new('POLY')
-    spline.points.add(len(ordered_verts)-1)
-    for i, v in enumerate(ordered_verts):
-        spline.points[i].co = (*v.co, 1.0)
+    for chain in chains:
+        spline = curve_data.splines.new('POLY')
+        spline.points.add(len(chain)-1)
+        for i, v in enumerate(chain):
+            spline.points[i].co = (*v.co, 1.0)
     curve_obj = bpy.data.objects.new("EdgeCurve", curve_data)
     bpy.context.collection.objects.link(curve_obj)
     curve_obj.location = obj.location
     bpy.ops.object.mode_set(mode='OBJECT')
     print("Curve created successfully!")
-
 
 selected_edges_to_curve(bpy.context.active_object)
