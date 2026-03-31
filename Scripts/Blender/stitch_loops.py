@@ -121,11 +121,5 @@ def stitch_loops(loop_a_coords, loop_b_coords, tile_u_per_meter, tile_v_per_mete
     return obj
 
 
-def build_stitch_mesh():
-    """
-    Main execution function that creates the stitched mesh.
-    """
-    stitch_loops(LOOP_A_COORDS, LOOP_B_COORDS, TILE_U_PER_METER, TILE_V_PER_METER)
+stitch_loops(LOOP_A_COORDS, LOOP_B_COORDS, TILE_U_PER_METER, TILE_V_PER_METER)
 
-
-build_stitch_mesh()
