@@ -18,28 +18,72 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 import bpy
 import bmesh
 from mathutils import Vector, Matrix
+from enum import Enum, auto
 
-# TODO: materials + UV mapping
+class TileDirection(Enum):
+    U = auto()
+    V = auto()
 
-MAKE_SOLID = False
+X_OFFSET = 0.0
 SAMPLE_INTERVAL = 1.0
+EMBANKMENT_U_PER_METER = 0.04
+TRACKBED_V_PER_METER = 0.1
 
-EMBANKMENT_PROFILE = [
-    (21.3000, -16.7500, 0.5),
-    (5.3000, -0.7500, 1.0),
-    (4.3000, -0.3700, 1.0),
-    (4.3000, -0.3700, 1.0),
-    (3.0500, -0.3500, 0.0),
-    (-3.0500, -0.3500, 0.0),
-    (-4.3000, -0.3700, 1.0),
-    (-4.3000, -0.3700, 1.0),
-    (-5.3000, -0.7500, 1.0),
-    (-21.3000, -16.7500, 0.5),
+EMBANKMENT_PROFILE_TRACKSIDE_LEFT = [
+    (20.9 + X_OFFSET, -16.3, -0.002), # x, y, texcoord
+    (4.9 + X_OFFSET, -0.31, -0.9087),
+    (3.9 + X_OFFSET, 0.04, -0.9654),
+    (3.3 + X_OFFSET, 0.04, -0.998),
+    (3.3 + X_OFFSET, -16.3, -0.998),
+]
+
+EMBANKMENT_PROFILE_TRACKSIDE_RIGHT = [
+    (-3.3 + X_OFFSET, -16.3, -0.998),
+    (-3.3 + X_OFFSET, 0.04, -0.998),
+    (-3.9 + X_OFFSET, 0.04, -0.9654),
+    (-4.9 + X_OFFSET, -0.31, -0.9087),
+    (-20.9 + X_OFFSET, -16.3, -0.002),
+]
+
+EMBANKMENT_PROFILE_TRACKBED_SINGLE = [
+    (3.3 + X_OFFSET, -16.3, 0.145),
+    (3.3 + X_OFFSET, 0.04, 0.145),
+    (0.0 + X_OFFSET, 0.068, 0.98),
+    (-3.3 + X_OFFSET, 0.04, 0.145),
+    (-3.3 + X_OFFSET, -16.3, 0.145),
+]
+
+EMBANKMENT_PROFILE_TRACKBED_MULTI_RIGHT = [
+    (2.5 + X_OFFSET, -16.3, 0.98),
+    (2.5 + X_OFFSET, 0.068, 0.98),
+    (-3.3 + X_OFFSET, 0.04, 0.145),
+    (-3.3 + X_OFFSET, -16.3, 0.145),
+]
+
+EMBANKMENT_PROFILE_TRACKBED_MULTI_LEFT = [
+    (3.3 + X_OFFSET, -16.3, 0.145),
+    (3.3 + X_OFFSET, 0.04, 0.145),
+    (-2.5 + X_OFFSET, 0.068, 0.98),
+    (-2.5 + X_OFFSET, -16.3, 0.98),
+]
+
+EMBANKMENT_PROFILE_TRACKBED_MULTI_CENTER = [
+    (2.5 + X_OFFSET, -16.3, 0.255),
+    (2.5 + X_OFFSET, 0.068, 0.255),
+    (-2.5 + X_OFFSET, 0.068, 0.98),
+    (-2.5 + X_OFFSET, -16.3, 0.98),
 ]
 
 APPLY_EMBANKMENT_PROFILES = {
-    "Overpass1": [EMBANKMENT_PROFILE],
-    "Overpass2": [EMBANKMENT_PROFILE]
+    "Overpass1": [ # curve name
+        # profile, material name, tiling per meter, tile direction
+        (EMBANKMENT_PROFILE_TRACKBED_MULTI_RIGHT, "Trackbed", TRACKBED_V_PER_METER, TileDirection.V),
+        (EMBANKMENT_PROFILE_TRACKSIDE_RIGHT, "Embankment", EMBANKMENT_U_PER_METER, TileDirection.U),
+    ],
+    "Overpass2": [
+        (EMBANKMENT_PROFILE_TRACKBED_MULTI_LEFT, "Trackbed", TRACKBED_V_PER_METER, TileDirection.V),
+        (EMBANKMENT_PROFILE_TRACKSIDE_LEFT, "Embankment", EMBANKMENT_U_PER_METER, TileDirection.U)
+    ]
 }
 
 
@@ -61,15 +105,19 @@ def sample_curve(curve_obj, interval=SAMPLE_INTERVAL):
         points = [p.co for p in spline.points]
     points = [curve_obj.matrix_world @ Vector(p.xyz) for p in points]
     sampled = [points[0]]
-    accum_dist = 0.0
+    distances = [0.0]
+    accum = 0.0
+    total = 0.0
     for i in range(1, len(points)):
         seg = points[i] - points[i-1]
         seg_len = seg.length
-        accum_dist += seg_len
-        if accum_dist >= interval:
+        accum += seg_len
+        total += seg_len
+        if accum >= interval:
             sampled.append(points[i])
-            accum_dist = 0.0
-    return sampled
+            distances.append(total)
+            accum = 0.0
+    return sampled, distances
 
 
 def tangent_at(points, i):
@@ -91,13 +139,16 @@ def tangent_at(points, i):
         return (points[i+1] - points[i-1]).normalized()
 
 
-def sweep_profile_along_curve(curve_obj, profile):
+def sweep_profile_along_curve(curve_obj, profile, material_name, tile_per_meter, tile_direction):
     """
     Sweeps a 2D embankment profile along a 3D curve to generate a mesh.
 
     Args:
         curve_obj (bpy.types.Object): Curve object along which the profile is swept.
         profile (list[tuple[float, float, float]]): 2D profile coordinates with optional height.
+        material_name (str): Material assigned to the generated mesh.
+        tile_per_meter (float): Texture tiling density along the curve.
+        tile_direction (TileDirection): UV axis used for tiling along the curve.
 
     Returns:
         bpy.types.Object: Generated embankment mesh object.
@@ -108,8 +159,15 @@ def sweep_profile_along_curve(curve_obj, profile):
     mesh = bpy.data.meshes.new(f"{curve_obj.data.name}_Embankment")
     embankment_obj = bpy.data.objects.new(f"{curve_obj.data.name}_Embankment", mesh)
     bpy.context.collection.objects.link(embankment_obj)
+    mat = bpy.data.materials.get(material_name)
+    if mat is None:
+        mat = bpy.data.materials.new(material_name)
+    if mat.name not in embankment_obj.data.materials:
+        embankment_obj.data.materials.append(mat)
+    material_index = embankment_obj.data.materials.find(mat.name)
     bm = bmesh.new()
-    points_3d = sample_curve(curve_obj)
+    uv_layer = bm.loops.layers.uv.new("UVMap")
+    points_3d, distances = sample_curve(curve_obj)
     vertices_along_spline = []
     for i, pt in enumerate(points_3d):
         tangent = tangent_at(points_3d, i)
@@ -124,25 +182,46 @@ def sweep_profile_along_curve(curve_obj, profile):
         for px, py, v in profile:
             local = Vector((px, py, 0))
             vert = bm.verts.new(pt + rot @ local)
-            row.append(vert)
+            row.append((vert, v))
         vertices_along_spline.append(row)
     bm.verts.ensure_lookup_table()
     for i in range(len(vertices_along_spline)-1):
         loop1 = vertices_along_spline[i]
         loop2 = vertices_along_spline[i+1]
-        n = len(loop1)
-        for j in range(n-1):
-            bm.faces.new([loop1[j], loop2[j], loop2[j+1], loop1[j+1]])
-    if MAKE_SOLID and len(profile) >= 3:
-        bm.faces.new(vertices_along_spline[0])
-        bm.faces.new(list(reversed(vertices_along_spline[-1])))
+        d1 = distances[i]
+        d2 = distances[i+1]
+        for j in range(len(loop1)-1):
+            v1, t1 = loop1[j]
+            v2, t2 = loop1[j+1]
+            v3, t3 = loop2[j+1]
+            v4, t4 = loop2[j]
+            face = bm.faces.new([v1, v4, v3, v2])
+            face.material_index = material_index
+            loops = face.loops
+            if tile_direction == TileDirection.U:
+                u1 = d1 * tile_per_meter
+                u2 = d2 * tile_per_meter
+                loops[0][uv_layer].uv = (u1, t1)
+                loops[1][uv_layer].uv = (u2, t4)
+                loops[2][uv_layer].uv = (u2, t3)
+                loops[3][uv_layer].uv = (u1, t2)
+            else: # TileDirection.V
+                v1d = d1 * tile_per_meter
+                v2d = d2 * tile_per_meter
+                loops[0][uv_layer].uv = (t1, v1d)
+                loops[1][uv_layer].uv = (t4, v2d)
+                loops[2][uv_layer].uv = (t3, v2d)
+                loops[3][uv_layer].uv = (t2, v1d)
+    if len(profile) >= 3:
+        bm.faces.new([v[0] for v in vertices_along_spline[0]])
+        bm.faces.new(list(reversed([v[0] for v in vertices_along_spline[-1]])))
         for i in range(len(vertices_along_spline)-1):
             row1 = vertices_along_spline[i]
             row2 = vertices_along_spline[i+1]
-            bottom1_left = min(row1, key=lambda v: v.co.x)
-            bottom1_right = max(row1, key=lambda v: v.co.x)
-            bottom2_left = min(row2, key=lambda v: v.co.x)
-            bottom2_right = max(row2, key=lambda v: v.co.x)
+            bottom1_left  = row1[0][0]
+            bottom1_right = row1[-1][0]
+            bottom2_left  = row2[0][0]
+            bottom2_right = row2[-1][0]
             bm.faces.new([bottom1_left, bottom2_left, bottom2_right, bottom1_right])
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -164,8 +243,8 @@ def build_embankment():
         curve_obj = bpy.data.objects[curve_name]
         if isinstance(emb_profiles[0], tuple) and isinstance(emb_profiles[0][0], (int, float)):
             emb_profiles = [emb_profiles]
-        for emb_profile in emb_profile:
-            sweep_profile_along_curve(curve_obj, emb_profile)
+        for emb_profile, material_name, tile_per_meter, tile_direction in emb_profiles:
+            sweep_profile_along_curve(curve_obj, emb_profile, material_name, tile_per_meter, tile_direction)
 
 
 build_embankment()
