@@ -17,9 +17,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
 
-def get_selected_vertices():
+
+def print_selected_vertices():
     """
-    Retrieves the coordinates of all selected vertices in the active mesh object.
+    Prints the coordinates of all selected vertices in the active mesh object.
 
     This function temporarily switches the object to 'OBJECT' mode to access vertex selection data, 
     collects the coordinates of all selected vertices, prints them, and then restores the original mode.
@@ -31,4 +32,4 @@ def get_selected_vertices():
     bpy.ops.object.mode_set(mode=mode)
 
 
-get_selected_vertices()
+print_selected_vertices()

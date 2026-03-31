@@ -25,11 +25,13 @@ import math
 EDGE_CURVE = "EdgeCurveRWall2"
 UNDERPASS_CURVE = "Underpass"
 
-WALL_THICKNESS = 0.6
-CONCRETE_HEIGHT = 0.5
+CONCRETE_EDGE_THICKNESS = 0.6
+CONCRETE_EDGE_HEIGHT = 0.5
 
+STEEL_ZIGZAG = False
 STEEL_ZIGZAG_AMPLITUDE = 0.2
 STEEL_STEP_LENGTH = 0.6
+STEEL_FLIP_FACES = True
 
 PHASE_SEQUENCE = [2, 0, 2, 1] # 0=left, 1=right, 2=straight
 
@@ -118,7 +120,7 @@ def build_steel_rwall():
     Notes:
         - Wall columns are positioned along the edge curve at intervals defined by STEEL_STEP_LENGTH.
         - Columns follow a zigzag pattern defined by PHASE_SEQUENCE and STEEL_ZIGZAG_AMPLITUDE.
-        - Wall height is determined relative to the underpass curve and CONCRETE_HEIGHT.
+        - Wall height is determined relative to the underpass curve and CONCRETE_EDGE_HEIGHT.
     """
     edge_curve = bpy.data.objects[EDGE_CURVE]
     under_curve = bpy.data.objects[UNDERPASS_CURVE]
@@ -131,23 +133,30 @@ def build_steel_rwall():
     bm = bmesh.new()
     columns = []
     cumulative_offset = 0.0
-    segment_count = math.ceil(edge_total / STEEL_STEP_LENGTH)
+    if STEEL_ZIGZAG:
+        step_length = STEEL_STEP_LENGTH
+    else:
+        step_length = STEEL_STEP_LENGTH * 8
+    segment_count = math.ceil(edge_total / step_length)
     for i in range(segment_count + 1):
-        dist = min(i * STEEL_STEP_LENGTH, edge_total)
+        dist = min(i * step_length, edge_total)
         edge_pt = sample_by_distance(edge_pts, edge_lengths, edge_total, dist)
         under_pt = closest_point_xy(edge_pt, under_pts)
         steel_bottom = under_pt.z - 0.5
-        concrete_bottom_z = edge_pt.z - CONCRETE_HEIGHT
+        concrete_bottom_z = edge_pt.z - CONCRETE_EDGE_HEIGHT
         steel_top = max(concrete_bottom_z, steel_bottom)
         next_dist = min(dist + STEEL_STEP_LENGTH, edge_total)
         edge_pt_next = sample_by_distance(edge_pts, edge_lengths, edge_total, next_dist)
         direction = (edge_pt_next - edge_pt).to_2d().normalized()
         perp = -Vector((-direction.y, direction.x, 0))
-        phase = PHASE_SEQUENCE[i % len(PHASE_SEQUENCE)]
-        if phase == 0:
-            cumulative_offset -= STEEL_ZIGZAG_AMPLITUDE
-        elif phase == 1:
-            cumulative_offset += STEEL_ZIGZAG_AMPLITUDE
+        if STEEL_ZIGZAG:
+            phase = PHASE_SEQUENCE[i % len(PHASE_SEQUENCE)]
+            if phase == 0:
+                cumulative_offset -= STEEL_ZIGZAG_AMPLITUDE
+            elif phase == 1:
+                cumulative_offset += STEEL_ZIGZAG_AMPLITUDE
+        else:
+            cumulative_offset = 0.0
         offset = perp * cumulative_offset
         v_bottom = bm.verts.new(Vector((edge_pt.x, edge_pt.y, steel_bottom)) + offset)
         v_top = bm.verts.new(Vector((edge_pt.x, edge_pt.y, steel_top)) + offset)
@@ -158,7 +167,10 @@ def build_steel_rwall():
         c2 = columns[i+1]
         if (c1[0].co.z == c1[1].co.z) and (c2[0].co.z == c2[1].co.z):
             continue
-        bm.faces.new([c1[0], c2[0], c2[1], c1[1]])
+        if STEEL_FLIP_FACES:
+            bm.faces.new([c1[1], c2[1], c2[0], c1[0]])
+        else:
+            bm.faces.new([c1[0], c2[0], c2[1], c1[1]])
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
@@ -171,8 +183,8 @@ def build_concrete_edge():
 
     Notes:
         - Wall geometry is created between the edge curve and underpass curve.
-        - Wall thickness is defined by WALL_THICKNESS.
-        - Concrete height is limited by CONCRETE_HEIGHT and underpass elevation.
+        - Wall thickness is defined by CONCRETE_EDGE_THICKNESS.
+        - Concrete height is limited by CONCRETE_EDGE_HEIGHT and underpass elevation.
         - Generates front/back and top/bottom faces of the wall mesh.
     """
     edge_curve = bpy.data.objects[EDGE_CURVE]
@@ -200,9 +212,9 @@ def build_concrete_edge():
             direction = (edge_pts[i+1] - edge_pts[i]).to_2d().normalized()
         else:
             direction = (edge_pts[i] - edge_pts[i-1]).to_2d().normalized()
-        perp = Vector((-direction.y, direction.x, 0)) * (WALL_THICKNESS / 2)
+        perp = Vector((-direction.y, direction.x, 0)) * (CONCRETE_EDGE_THICKNESS / 2)
         concrete_top_z = edge_pt.z
-        concrete_bottom_z = max(edge_pt.z - CONCRETE_HEIGHT, under_pt.z - 0.5)
+        concrete_bottom_z = max(edge_pt.z - CONCRETE_EDGE_HEIGHT, under_pt.z - 0.5)
         fb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, concrete_bottom_z)) - perp)
         bb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, concrete_bottom_z)) + perp)
         ft = bm.verts.new(Vector((edge_pt.x, edge_pt.y, concrete_top_z)) - perp)
