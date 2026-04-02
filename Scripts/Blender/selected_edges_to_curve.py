@@ -19,30 +19,6 @@ import bpy
 import bmesh
 
 
-def traverse_chain(start):
-    """
-    Traverse a connected chain of vertices from a starting vertex.
-
-    Args:
-        start (bmesh.types.BMVert): The starting vertex.
-
-    Returns:
-        list[bmesh.types.BMVert]: Ordered list of vertices forming the chain.
-    """
-    chain = []
-    stack = [(start, None)]
-    while stack:
-        v, prev = stack.pop()
-        if v in visited:
-            continue
-        visited.add(v)
-        chain.append(v)
-        neighbors = [n for n in adjacency.get(v, []) if n != prev and n not in visited]
-        if neighbors:
-            stack.append((neighbors[0], v))
-    return chain
-
-
 def selected_edges_to_curve(obj):
     """
     Converts selected edges of a mesh object into a 3D curve object.
@@ -73,6 +49,19 @@ def selected_edges_to_curve(obj):
         adjacency.setdefault(v1, []).append(v2)
         adjacency.setdefault(v2, []).append(v1)
     visited = set()
+    def traverse_chain(start):
+        chain = []
+        stack = [(start, None)]
+        while stack:
+            v, prev = stack.pop()
+            if v in visited:
+                continue
+            visited.add(v)
+            chain.append(v)
+            neighbors = [n for n in adjacency.get(v, []) if n != prev and n not in visited]
+            if neighbors:
+                stack.append((neighbors[0], v))
+        return chain
     endpoints = [v for v, nbrs in adjacency.items() if len(nbrs) == 1]
     chains = []
     for ep in endpoints:

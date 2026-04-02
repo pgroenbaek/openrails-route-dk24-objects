@@ -97,20 +97,6 @@ def tangent_at(points, i):
     return (points[i + 1] - points[i - 1]).normalized()
 
 
-def create_face(bm, verts):
-    """
-    Safely creates a quad or polygon face in a BMesh.
-
-    Args:
-        bm (bmesh.types.BMesh): BMesh to add the face to.
-        verts (list[bmesh.types.BMVert]): Ordered vertices defining the face.
-    """
-    try:
-        bm.faces.new(verts)
-    except ValueError:
-        pass
-
-
 def create_profile_mesh(name, profile, points, vertical=False, start_offset=0.0, end_offset=0.0):
     """
     Creates a mesh by extruding a 2D profile along a series of points.
@@ -168,9 +154,9 @@ def create_profile_mesh(name, profile, points, vertical=False, start_offset=0.0,
             vert2 = loop2[j]
             vert3 = loop2[j + 1]
             vert4 = loop1[j + 1]
-            create_face(bm, [vert1, vert2, vert3, vert4])
-    create_face(bm, rows[0])
-    create_face(bm, list(reversed(rows[-1])))
+            bm.faces.new([vert1, vert2, vert3, vert4])
+    bm.faces.new(rows[0])
+    bm.faces.new(list(reversed(rows[-1])))
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
