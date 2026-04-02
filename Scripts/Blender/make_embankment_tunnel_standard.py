@@ -19,26 +19,36 @@ import bpy
 import bmesh
 from mathutils import Vector, Matrix
 
-# TODO: materials + UV mapping
 
 UNDERPASS_CURVE_NAME = "Underpass"
-SIDE_CURVE_NAMES = ["EdgeCurveRWall1", "EdgeCurveRWall2"]
+SIDE_CURVE_NAMES = ["RWallCurve1", "RWallCurve2"]
 
 WALL_THICKNESS = 0.7
+WALL_U_PER_METER = 0.1
+WALL_MATERIAL_NAME = "Concrete"
+
 SAMPLE_INTERVAL = 1.0
 
 TUNNEL_PROFILE = [
     (-3.7, -1.0, 0.0),
+    (-3.7 - WALL_THICKNESS, -1.0, 0.07),
     (-3.7 - WALL_THICKNESS, -1.0, 0.0),
+    (-3.7 - WALL_THICKNESS, 8 + WALL_THICKNESS, 1.0),
     (-3.7 - WALL_THICKNESS, 8 + WALL_THICKNESS, 0.0),
-    (3.7 + WALL_THICKNESS, 8 + WALL_THICKNESS, 0.0),
+    (3.7 + WALL_THICKNESS, 8 + WALL_THICKNESS, 1.0),
+    (3.7 + WALL_THICKNESS, 8 + WALL_THICKNESS, 1.0),
     (3.7 + WALL_THICKNESS, -1.0, 0.0),
+    (3.7 + WALL_THICKNESS, -1.0, 0.07),
     (3.7, -1.0, 0.0),
-    (3.7, 7.0, 0.0),
-    (1.7, 7.65, 0.0),
-    (-1.7, 7.65, 0.0),
-    (-3.7, 7.0, 0.0),
+    (3.7, 7.0, 1.0),
+    (3.7, 7.0, 0.03),
+    (1.7, 7.65, 0.2),
+    (0.0, 7.65, 0.0),
+    (-1.7, 7.65, 0.2),
+    (-3.7, 7.0, 0.03),
+    (-3.7, 7.0, 1.0),
     (-3.7, -1.0, 0.0),
+    (-3.7, -1.0, 0.19),
 ]
 
 
@@ -202,9 +212,19 @@ def sweep_profile_along_points(points, profile):
     mesh = bpy.data.meshes.new("Tunnel")
     obj = bpy.data.objects.new("Tunnel", mesh)
     bpy.context.collection.objects.link(obj)
+    material = bpy.data.materials.get(WALL_MATERIAL_NAME)
+    if material is None:
+        material = bpy.data.materials.new(WALL_MATERIAL_NAME)
+    if material.name not in obj.data.materials:
+        obj.data.materials.append(material)
+    material_index = obj.data.materials.find(material.name)
     bm = bmesh.new()
+    uv_layer = bm.loops.layers.uv.new("UVMap")
     rows = []
+    running_length = 0.0
     for i, point in enumerate(points):
+        if i > 0:
+            running_length += (points[i] - points[i - 1]).length
         tangent = tangent_at(points, i)
         z_axis = tangent
         up = Vector((0, 0, 1))
@@ -223,18 +243,48 @@ def sweep_profile_along_points(points, profile):
     for i in range(len(rows) - 1):
         loop1 = rows[i]
         loop2 = rows[i + 1]
+        segment_length = (points[i + 1] - points[i]).length
+        u1 = (running_length - segment_length) * WALL_U_PER_METER
+        u2 = running_length * WALL_U_PER_METER
         for j in range(len(loop1) - 1):
             vert1 = loop1[j]
             vert2 = loop2[j]
             vert3 = loop2[j + 1]
             vert4 = loop1[j + 1]
-            bm.faces.new([vert1, vert2, vert3, vert4])
-    bm.faces.new(rows[0])
-    bm.faces.new(list(reversed(rows[-1])))
+            face = bm.faces.new([vert1, vert2, vert3, vert4])
+            face.material_index = material_index
+            v1 = profile[j][2]
+            v2 = profile[j+1][2]
+            loops = face.loops
+            loops[0][uv_layer].uv = (u1, v1)
+            loops[1][uv_layer].uv = (u2, v1)
+            loops[2][uv_layer].uv = (u2, v2)
+            loops[3][uv_layer].uv = (u1, v2)
+    y_values = [p[1] for p in profile]
+    y_min = min(y_values)
+    y_max = max(y_values)
+    y_range = y_max - y_min if y_max != y_min else 1.0
+    start_face = bm.faces.new(rows[0])
+    start_face.material_index = material_index
+    start_loops = start_face.loops
+    for i, loops in enumerate(start_loops):
+        point_x, point_y, _ = profile[i]
+        u = point_x * WALL_U_PER_METER
+        v = (point_y - y_min) / y_range
+        loops[uv_layer].uv = (u, v)
+    end_face = bm.faces.new(list(reversed(rows[-1])))
+    end_face.material_index = material_index
+    end_loops = end_face.loops
+    for i, loops in enumerate(end_loops):
+        point_x, point_y, _ = profile[len(profile) - 1 - i]
+        u = point_x * WALL_U_PER_METER
+        v = (point_y - y_min) / y_range
+        loops[uv_layer].uv = (u, v)
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
     bm.free()
+    mesh.update()
     return obj
 
 

@@ -91,6 +91,7 @@ def build_concrete_rwall():
         obj.data.materials.append(material)
     material_index = obj.data.materials.find(material.name)
     bm = bmesh.new()
+    uv_layer = bm.loops.layers.uv.new("UVMap")
     front_bottom = []
     front_top = []
     back_bottom = []
@@ -121,7 +122,6 @@ def build_concrete_rwall():
         back_bottom.append(bb)
         back_top.append(bt)
     bm.verts.ensure_lookup_table()
-    uv_layer = bm.loops.layers.uv.verify()
     running_length = 0.0
     for i in range(len(edge_points) - 1):
         if not front_bottom[i] or not front_bottom[i + 1]:
