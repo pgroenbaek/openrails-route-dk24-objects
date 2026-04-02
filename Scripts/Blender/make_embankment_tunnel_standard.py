@@ -30,7 +30,7 @@ WALL_MATERIAL_NAME = "Concrete"
 SAMPLE_INTERVAL = 1.0
 
 TUNNEL_PROFILE = [
-    (-3.7, -1.0, 0.0),
+    (-3.7, -1.0, 0.0), # x, y, v
     (-3.7 - WALL_THICKNESS, -1.0, 0.07),
     (-3.7 - WALL_THICKNESS, -1.0, 0.0),
     (-3.7 - WALL_THICKNESS, 8 + WALL_THICKNESS, 1.0),
