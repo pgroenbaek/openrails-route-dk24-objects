@@ -151,9 +151,6 @@ def sweep_profile_along_curve(curve_obj, profile, material_name, tile_per_meter,
 
     Returns:
         bpy.types.Object: Generated embankment mesh object.
-
-    Notes:
-        - If MAKE_SOLID is True, caps the ends and connects bottom edges to form a solid mesh.
     """
     mesh = bpy.data.meshes.new(f"{curve_obj.data.name}_Embankment")
     embankment_obj = bpy.data.objects.new(f"{curve_obj.data.name}_Embankment", mesh)

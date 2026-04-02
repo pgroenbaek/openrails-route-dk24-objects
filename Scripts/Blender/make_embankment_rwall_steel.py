@@ -28,11 +28,13 @@ UNDERPASS_CURVE = "Underpass"
 CONCRETE_EDGE_THICKNESS = 0.6
 CONCRETE_EDGE_HEIGHT = 0.5
 CONCRETE_EDGE_OFFSET = 0.1
+CONCRETE_MATERIAL_NAME = "Concrete"
 
 STEEL_ZIGZAG = False
 STEEL_ZIGZAG_AMPLITUDE = 0.2
 STEEL_STEP_LENGTH = 0.6
 STEEL_FLIP_FACES = True
+STEEL_MATERIAL_NAME = "RustySteel"
 
 PHASE_SEQUENCE = [2, 0, 2, 1] # 0=left, 1=right, 2=straight
 
@@ -92,18 +94,18 @@ def sample_by_distance(points, lengths, total_length, dist):
     return points[-1]
 
 
-def closest_point_xy(target_pt, points):
+def closest_point_xy(target_point, points):
     """
     Finds the closest point in XY plane from a list of points to a target point.
 
     Args:
-        target_pt (Vector): Target 3D point.
+        target_point (Vector): Target 3D point.
         points (list[Vector]): List of 3D points to search.
 
     Returns:
         Vector: Point from the list closest to the target in XY coordinates.
     """
-    target_xy = Vector((target_pt.x, target_pt.y))
+    target_xy = Vector((target_point.x, target_point.y))
     closest = points[0]
     min_dist = (target_xy - Vector((closest.x, closest.y))).length
     for point in points[1:]:
@@ -157,9 +159,10 @@ def build_steel_rwall():
                 cumulative_offset += STEEL_ZIGZAG_AMPLITUDE
         else:
             cumulative_offset = 0.0
-        edge_offset = -Vector((-direction.y, direction.x, 0)) * cumulative_offset
-        v_bottom = bm.verts.new(Vector((edge_point.x, edge_point.y, steel_bottom)) + edge_offset)
-        v_top = bm.verts.new(Vector((edge_point.x, edge_point.y, steel_top)) + edge_offset)
+        perp = -Vector((-direction.y, direction.x, 0))
+        steel_offset = perp * cumulative_offset
+        v_bottom = bm.verts.new(Vector((edge_point.x, edge_point.y, steel_bottom)) + steel_offset)
+        v_top = bm.verts.new(Vector((edge_point.x, edge_point.y, steel_top)) + steel_offset)
         columns.append((v_bottom, v_top))
     bm.verts.ensure_lookup_table()
     for i in range(len(columns) - 1):
