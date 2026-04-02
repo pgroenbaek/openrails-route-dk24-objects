@@ -106,17 +106,16 @@ def sample_curve(curve_obj, interval=SAMPLE_INTERVAL):
     points = [curve_obj.matrix_world @ Vector(p.xyz) for p in points]
     sampled = [points[0]]
     distances = [0.0]
-    accum = 0.0
-    total = 0.0
+    accum_dist = 0.0
+    total_dist = 0.0
     for i in range(1, len(points)):
-        seg = points[i] - points[i-1]
-        seg_len = seg.length
-        accum += seg_len
-        total += seg_len
-        if accum >= interval:
+        segment = points[i] - points[i - 1]
+        accum_dist += segment.length
+        total_dist += segment.length
+        if accum_dist >= interval:
             sampled.append(points[i])
-            distances.append(total)
-            accum = 0.0
+            distances.append(total_dist)
+            accum_dist = 0.0
     return sampled, distances
 
 
@@ -133,10 +132,10 @@ def tangent_at(points, i):
     """
     if i == 0:
         return (points[1] - points[0]).normalized()
-    elif i == len(points)-1:
+    elif i == len(points) - 1:
         return (points[-1] - points[-2]).normalized()
     else:
-        return (points[i+1] - points[i-1]).normalized()
+        return (points[i + 1] - points[i - 1]).normalized()
 
 
 def sweep_profile_along_curve(curve_obj, profile, material_name, tile_per_meter, tile_direction):
@@ -159,17 +158,17 @@ def sweep_profile_along_curve(curve_obj, profile, material_name, tile_per_meter,
     mesh = bpy.data.meshes.new(f"{curve_obj.data.name}_Embankment")
     embankment_obj = bpy.data.objects.new(f"{curve_obj.data.name}_Embankment", mesh)
     bpy.context.collection.objects.link(embankment_obj)
-    mat = bpy.data.materials.get(material_name)
-    if mat is None:
-        mat = bpy.data.materials.new(material_name)
-    if mat.name not in embankment_obj.data.materials:
-        embankment_obj.data.materials.append(mat)
-    material_index = embankment_obj.data.materials.find(mat.name)
+    material = bpy.data.materials.get(material_name)
+    if material is None:
+        material = bpy.data.materials.new(material_name)
+    if material.name not in embankment_obj.data.materials:
+        embankment_obj.data.materials.append(material)
+    material_index = embankment_obj.data.materials.find(material.name)
     bm = bmesh.new()
     uv_layer = bm.loops.layers.uv.new("UVMap")
     points_3d, distances = sample_curve(curve_obj)
     vertices_along_spline = []
-    for i, pt in enumerate(points_3d):
+    for i, point in enumerate(points_3d):
         tangent = tangent_at(points_3d, i)
         z_axis = tangent
         up = Vector((0, 0, 1))
@@ -177,50 +176,48 @@ def sweep_profile_along_curve(curve_obj, profile, material_name, tile_per_meter,
             up = Vector((0, 1, 0))
         x_axis = up.cross(z_axis).normalized()
         y_axis = z_axis.cross(x_axis).normalized()
-        rot = Matrix((x_axis, y_axis, z_axis)).transposed()
+        rotation = Matrix((x_axis, y_axis, z_axis)).transposed()
         row = []
-        for px, py, v in profile:
-            local = Vector((px, py, 0))
-            vert = bm.verts.new(pt + rot @ local)
-            row.append((vert, v))
+        for point_x, point_y, texcoord in profile:
+            local = Vector((point_x, point_y, 0))
+            vert = bm.verts.new(point + rotation @ local)
+            row.append((vert, texcoord))
         vertices_along_spline.append(row)
     bm.verts.ensure_lookup_table()
-    for i in range(len(vertices_along_spline)-1):
+    for i in range(len(vertices_along_spline) - 1):
         loop1 = vertices_along_spline[i]
-        loop2 = vertices_along_spline[i+1]
-        d1 = distances[i]
-        d2 = distances[i+1]
-        for j in range(len(loop1)-1):
-            v1, t1 = loop1[j]
-            v2, t2 = loop1[j+1]
-            v3, t3 = loop2[j+1]
-            v4, t4 = loop2[j]
-            face = bm.faces.new([v1, v4, v3, v2])
+        loop2 = vertices_along_spline[i + 1]
+        distance1 = distances[i]
+        distance2 = distances[i + 1]
+        for j in range(len(loop1) - 1):
+            vert1, texcoord1 = loop1[j]
+            vert2, texcoord2 = loop1[j + 1]
+            vert3, texcoord3 = loop2[j + 1]
+            vert4, texcoord4 = loop2[j]
+            face = bm.faces.new([vert1, vert4, vert3, vert2])
             face.material_index = material_index
             loops = face.loops
+            tiled_texcoord1 = distance1 * tile_per_meter
+            tiled_texcoord2 = distance2 * tile_per_meter
             if tile_direction == TileDirection.U:
-                u1 = d1 * tile_per_meter
-                u2 = d2 * tile_per_meter
-                loops[0][uv_layer].uv = (u1, t1)
-                loops[1][uv_layer].uv = (u2, t4)
-                loops[2][uv_layer].uv = (u2, t3)
-                loops[3][uv_layer].uv = (u1, t2)
+                loops[0][uv_layer].uv = (tiled_texcoord1, texcoord1)
+                loops[1][uv_layer].uv = (tiled_texcoord2, texcoord4)
+                loops[2][uv_layer].uv = (tiled_texcoord2, texcoord3)
+                loops[3][uv_layer].uv = (tiled_texcoord1, texcoord2)
             else: # TileDirection.V
-                v1d = d1 * tile_per_meter
-                v2d = d2 * tile_per_meter
-                loops[0][uv_layer].uv = (t1, v1d)
-                loops[1][uv_layer].uv = (t4, v2d)
-                loops[2][uv_layer].uv = (t3, v2d)
-                loops[3][uv_layer].uv = (t2, v1d)
+                loops[0][uv_layer].uv = (texcoord1, tiled_texcoord1)
+                loops[1][uv_layer].uv = (texcoord4, tiled_texcoord2)
+                loops[2][uv_layer].uv = (texcoord3, tiled_texcoord2)
+                loops[3][uv_layer].uv = (texcoord2, tiled_texcoord1)
     if len(profile) >= 3:
-        bm.faces.new([v[0] for v in vertices_along_spline[0]])
-        bm.faces.new(list(reversed([v[0] for v in vertices_along_spline[-1]])))
-        for i in range(len(vertices_along_spline)-1):
+        bm.faces.new([vert[0] for vert in vertices_along_spline[0]])
+        bm.faces.new(list(reversed([vert[0] for vert in vertices_along_spline[-1]])))
+        for i in range(len(vertices_along_spline) - 1):
             row1 = vertices_along_spline[i]
-            row2 = vertices_along_spline[i+1]
-            bottom1_left  = row1[0][0]
+            row2 = vertices_along_spline[i + 1]
+            bottom1_left = row1[0][0]
             bottom1_right = row1[-1][0]
-            bottom2_left  = row2[0][0]
+            bottom2_left = row2[0][0]
             bottom2_right = row2[-1][0]
             bm.faces.new([bottom1_left, bottom2_left, bottom2_right, bottom1_right])
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)

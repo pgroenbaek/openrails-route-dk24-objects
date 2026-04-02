@@ -21,10 +21,13 @@ from mathutils import Vector
 
 # TODO: materials + UV mapping
 
-EDGE_CURVE = "EdgeCurveRWall2"
+RWALL_EDGE_CURVE = "RWallCurve1"
 UNDERPASS_CURVE = "Underpass"
 
+MATERIAL_NAME = "Concrete"
 WALL_THICKNESS = 0.6
+WALL_U_PER_METER = 0.1
+WALL_OFFSET = -0.1
 
 
 def sample_curve_eval(curve_obj):
@@ -40,30 +43,30 @@ def sample_curve_eval(curve_obj):
     depsgraph = bpy.context.evaluated_depsgraph_get()
     eval_obj = curve_obj.evaluated_get(depsgraph)
     mesh = eval_obj.to_mesh()
-    pts = [eval_obj.matrix_world @ v.co for v in mesh.vertices]
+    points = [eval_obj.matrix_world @ v.co for v in mesh.vertices]
     eval_obj.to_mesh_clear()
-    return pts
+    return points
 
 
-def closest_point_xy(target_pt, points):
+def closest_point_xy(target_point, points):
     """
     Finds the closest point in XY plane from a list of points to a target point.
 
     Args:
-        target_pt (Vector): Target 3D point.
+        target_point (Vector): Target 3D point.
         points (list[Vector]): List of 3D points to search.
 
     Returns:
         Vector: Point from the list closest to the target in XY coordinates.
     """
-    target_xy = Vector((target_pt.x, target_pt.y))
+    target_xy = Vector((target_point.x, target_point.y))
     closest = points[0]
     min_dist = (target_xy - Vector((closest.x, closest.y))).length
-    for p in points[1:]:
-        d = (target_xy - Vector((p.x, p.y))).length
-        if d < min_dist:
-            min_dist = d
-            closest = p
+    for point in points[1:]:
+        dist = (target_xy - Vector((point.x, point.y))).length
+        if dist < min_dist:
+            min_dist = dist
+            closest = point
     return closest
 
 
@@ -76,10 +79,10 @@ def build_concrete_rwall():
         - Creates a mesh with front/back faces and top/bottom faces.
         - Wall thickness is defined by WALL_THICKNESS constant.
     """
-    edge_curve = bpy.data.objects[EDGE_CURVE]
+    edge_curve = bpy.data.objects[RWALL_EDGE_CURVE]
     under_curve = bpy.data.objects[UNDERPASS_CURVE]
-    edge_pts = sample_curve_eval(edge_curve)
-    under_pts = sample_curve_eval(under_curve)
+    edge_points = sample_curve_eval(edge_curve)
+    under_points = sample_curve_eval(under_curve)
     mesh = bpy.data.meshes.new("ConcreteRetainingWall")
     obj = bpy.data.objects.new("ConcreteRetainingWall", mesh)
     bpy.context.collection.objects.link(obj)
@@ -88,36 +91,39 @@ def build_concrete_rwall():
     front_top = []
     back_bottom = []
     back_top = []
-    for i, edge_pt in enumerate(edge_pts):
-        under_pt = closest_point_xy(edge_pt, under_pts)
-        height = edge_pt.z - under_pt.z
-        if height <= 0:
+    for i, edge_point in enumerate(edge_points):
+        under_point = closest_point_xy(edge_point, under_points)
+        height = edge_point.z - under_point.z
+        if height <= -1.0:
             front_bottom.append(None)
             front_top.append(None)
             back_bottom.append(None)
             back_top.append(None)
             continue
-        if i < len(edge_pts)-1:
-            direction = (edge_pts[i+1] - edge_pts[i]).to_2d().normalized()
+        if i < len(edge_points) - 1:
+            direction = (edge_points[i + 1] - edge_points[i]).to_2d().normalized()
         else:
-            direction = (edge_pts[i] - edge_pts[i-1]).to_2d().normalized()
-        perp = Vector((-direction.y, direction.x, 0)) * (WALL_THICKNESS/2)
-        fb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, under_pt.z - 1.0)) - perp)
-        bb = bm.verts.new(Vector((edge_pt.x, edge_pt.y, under_pt.z - 1.0)) + perp)
-        ft = bm.verts.new(Vector((edge_pt.x, edge_pt.y, edge_pt.z)) - perp)
-        bt = bm.verts.new(Vector((edge_pt.x, edge_pt.y, edge_pt.z)) + perp)
+            direction = (edge_points[i] - edge_points[i - 1]).to_2d().normalized()
+        perp = Vector((-direction.y, direction.x, 0))
+        thickness_offset = perp * (WALL_THICKNESS / 2)
+        edge_offset = perp * WALL_OFFSET
+        wall_pos = Vector((edge_point.x, edge_point.y, 0)) + edge_offset
+        fb = bm.verts.new(Vector((wall_pos.x, wall_pos.y, under_point.z - 1.0)) - thickness_offset)
+        bb = bm.verts.new(Vector((wall_pos.x, wall_pos.y, under_point.z - 1.0)) + thickness_offset)
+        ft = bm.verts.new(Vector((wall_pos.x, wall_pos.y, edge_point.z)) - thickness_offset)
+        bt = bm.verts.new(Vector((wall_pos.x, wall_pos.y, edge_point.z)) + thickness_offset)
         front_bottom.append(fb)
         front_top.append(ft)
         back_bottom.append(bb)
         back_top.append(bt)
     bm.verts.ensure_lookup_table()
-    for i in range(len(edge_pts)-1):
-        if not front_bottom[i] or not front_bottom[i+1]:
+    for i in range(len(edge_points) - 1):
+        if not front_bottom[i] or not front_bottom[i + 1]:
             continue
-        bm.faces.new([front_bottom[i], front_bottom[i+1], front_top[i+1], front_top[i]])
-        bm.faces.new([back_bottom[i], back_top[i], back_top[i+1], back_bottom[i+1]])
-        bm.faces.new([front_top[i], front_top[i+1], back_top[i+1], back_top[i]])
-        bm.faces.new([front_bottom[i], back_bottom[i], back_bottom[i+1], front_bottom[i+1]])
+        bm.faces.new([front_bottom[i], front_bottom[i + 1], front_top[i + 1], front_top[i]])
+        bm.faces.new([back_bottom[i], back_top[i], back_top[i + 1], back_bottom[i + 1]])
+        bm.faces.new([front_top[i], front_top[i + 1], back_top[i + 1], back_top[i]])
+        bm.faces.new([front_bottom[i], back_bottom[i], back_bottom[i + 1], front_bottom[i + 1]])
     for i, fb in enumerate(front_bottom):
         if fb:
             bm.faces.new([front_bottom[i], front_top[i], back_top[i], back_bottom[i]])

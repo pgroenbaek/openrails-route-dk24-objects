@@ -22,7 +22,7 @@ from mathutils import Vector, Matrix
 # TODO: materials + UV mapping
 
 UNDERPASS_CURVE_NAME = "Underpass"
-SIDE_CURVES = ["EdgeCurveRWall1", "EdgeCurveRWall2"]
+SIDE_CURVE_NAMES = ["EdgeCurveRWall1", "EdgeCurveRWall2"]
 
 WALL_THICKNESS = 0.7
 SAMPLE_INTERVAL = 1.0
@@ -55,10 +55,10 @@ def tangent_at(points, i):
     """
     if i == 0:
         return (points[1] - points[0]).normalized()
-    elif i == len(points)-1:
+    elif i == len(points) - 1:
         return (points[-1] - points[-2]).normalized()
     else:
-        return (points[i+1] - points[i-1]).normalized()
+        return (points[i + 1] - points[i - 1]).normalized()
 
 
 def resample_curve(curve_obj, interval=SAMPLE_INTERVAL):
@@ -79,14 +79,13 @@ def resample_curve(curve_obj, interval=SAMPLE_INTERVAL):
         points = [p.co for p in spline.points]
     points = [curve_obj.matrix_world @ Vector(p.xyz) for p in points]
     sampled = [points[0]]
-    accum = 0.0
+    accum_dist = 0.0
     for i in range(1, len(points)):
-        seg = points[i] - points[i-1]
-        seg_len = seg.length
-        accum += seg_len
-        if accum >= interval:
+        segment = points[i] - points[i-1]
+        accum_dist += segment.length
+        if accum_dist >= interval:
             sampled.append(points[i])
-            accum = 0.0
+            accum_dist = 0.0
     if sampled[-1] != points[-1]:
         sampled.append(points[-1])
     return sampled
@@ -105,15 +104,15 @@ def get_wall_inner_end(curve_obj, underpass_mid):
     """
     spline = curve_obj.data.splines[0]
     if spline.type == 'BEZIER':
-        pts = [curve_obj.matrix_world @ p.co for p in spline.bezier_points]
+        points = [curve_obj.matrix_world @ p.co for p in spline.bezier_points]
     else:
-        pts = [curve_obj.matrix_world @ Vector(p.co.xyz) for p in spline.points]
-    p0 = pts[0]
-    p1 = pts[-1]
-    if (p0 - underpass_mid).length < (p1 - underpass_mid).length:
-        return p0
+        points = [curve_obj.matrix_world @ Vector(p.co.xyz) for p in spline.points]
+    point0 = points[0]
+    point1 = points[-1]
+    if (point0 - underpass_mid).length < (point1 - underpass_mid).length:
+        return point0
     else:
-        return p1
+        return point1
 
 
 def project_point_to_polyline(point, polyline):
@@ -130,16 +129,16 @@ def project_point_to_polyline(point, polyline):
     best_dist = 1e9
     best_point = None
     best_index = 0
-    for i in range(len(polyline)-1):
+    for i in range(len(polyline) - 1):
         a = polyline[i]
-        b = polyline[i+1]
+        b = polyline[i + 1]
         ab = b - a
         t = (point - a).dot(ab) / ab.length_squared
         t = max(0.0, min(1.0, t))
         proj = a + ab * t
-        d = (proj - point).length
-        if d < best_dist:
-            best_dist = d
+        dist = (proj - point).length
+        if dist < best_dist:
+            best_dist = dist
             best_point = proj
             best_index = i
     return best_point, best_index
@@ -157,7 +156,7 @@ def insert_point(polyline, point, index):
     Returns:
         int: Index of the inserted point.
     """
-    polyline.insert(index+1, point)
+    polyline.insert(index + 1, point)
     return index+1
 
 
@@ -171,22 +170,22 @@ def find_tunnel_segment(underpass_points):
     Returns:
         list[Vector] or None: Points of the segment between side walls, or None if walls missing.
     """
-    mid = underpass_points[len(underpass_points)//2]
+    mid_point = underpass_points[len(underpass_points) // 2]
     wall_points = []
-    for name in SIDE_CURVES:
+    for name in SIDE_CURVE_NAMES:
         obj = bpy.data.objects.get(name)
         if obj:
-            wall_points.append(get_wall_inner_end(obj, mid))
+            wall_points.append(get_wall_inner_end(obj, mid_point))
     if len(wall_points) != 2:
         print("Missing retaining walls")
         return None
-    pA, idxA = project_point_to_polyline(wall_points[0], underpass_points)
-    iA = insert_point(underpass_points, pA, idxA)
-    pB, idxB = project_point_to_polyline(wall_points[1], underpass_points)
-    iB = insert_point(underpass_points, pB, idxB)
-    start = min(iA, iB)
-    end = max(iA, iB)
-    return underpass_points[start:end+2]
+    projected_point1, closest_index1 = project_point_to_polyline(wall_points[0], underpass_points)
+    inserted_index1 = insert_point(underpass_points, projected_point1, closest_index1)
+    projected_point2, closest_index2 = project_point_to_polyline(wall_points[1], underpass_points)
+    inserted_index2 = insert_point(underpass_points, projected_point2, closest_index2)
+    start_index = min(inserted_index1, inserted_index2)
+    end_index = max(inserted_index1, inserted_index2)
+    return underpass_points[start_index:end_index + 2]
 
 
 def sweep_profile_along_points(points, profile):
@@ -205,27 +204,31 @@ def sweep_profile_along_points(points, profile):
     bpy.context.collection.objects.link(obj)
     bm = bmesh.new()
     rows = []
-    for i, pt in enumerate(points):
+    for i, point in enumerate(points):
         tangent = tangent_at(points, i)
         z_axis = tangent
-        up = Vector((0,0,1))
+        up = Vector((0, 0, 1))
         if abs(z_axis.dot(up)) > 0.999:
-            up = Vector((0,1,0))
+            up = Vector((0, 1, 0))
         x_axis = up.cross(z_axis).normalized()
         y_axis = z_axis.cross(x_axis).normalized()
-        rot = Matrix((x_axis,y_axis,z_axis)).transposed()
+        rotation = Matrix((x_axis, y_axis, z_axis)).transposed()
         row = []
-        for px,py,pz in profile:
-            local = Vector((px,py,0))
-            v = bm.verts.new(pt + rot @ local)
-            row.append(v)
+        for point_x, point_y, texcoord in profile:
+            local = Vector((point_x, point_y, 0))
+            vert = bm.verts.new(point + rotation @ local)
+            row.append(vert)
         rows.append(row)
     bm.verts.ensure_lookup_table()
-    for i in range(len(rows)-1):
+    for i in range(len(rows) - 1):
         loop1 = rows[i]
-        loop2 = rows[i+1]
-        for j in range(len(loop1)-1):
-            bm.faces.new([loop1[j],loop2[j],loop2[j+1],loop1[j+1]])
+        loop2 = rows[i + 1]
+        for j in range(len(loop1) - 1):
+            vert1 = loop1[j]
+            vert2 = loop2[j]
+            vert3 = loop2[j + 1]
+            vert4 = loop1[j + 1]
+            bm.faces.new([vert1, vert2, vert3, vert4])
     bm.faces.new(rows[0])
     bm.faces.new(list(reversed(rows[-1])))
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
