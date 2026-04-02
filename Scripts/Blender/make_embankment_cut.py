@@ -33,7 +33,9 @@ STANDARD_CUT_PROFILE = [
 
 EMBANKMENT_OBJECT_NAMES = [
     "Overpass1_Embankment",
-    "Overpass2_Embankment"
+    "Overpass1_Embankment.001",
+    "Overpass2_Embankment",
+    "Overpass2_Embankment.001",
 ]
 
 APPLY_CUT_PROFILES = {
@@ -62,9 +64,8 @@ def sample_curve(curve_obj, interval=SAMPLE_INTERVAL):
     sampled = [points[0]]
     accum_dist = 0.0
     for i in range(1, len(points)):
-        seg = points[i] - points[i-1]
-        seg_len = seg.length
-        accum_dist += seg_len
+        segment = points[i] - points[i - 1]
+        accum_dist += segment.length
         if accum_dist >= interval:
             sampled.append(points[i])
             accum_dist = 0.0
@@ -84,10 +85,10 @@ def tangent_at(points, i):
     """
     if i == 0:
         return (points[1] - points[0]).normalized()
-    elif i == len(points)-1:
+    elif i == len(points) - 1:
         return (points[-1] - points[-2]).normalized()
     else:
-        return (points[i+1] - points[i-1]).normalized()
+        return (points[i + 1] - points[i - 1]).normalized()
 
 
 def create_embankment_cutter(curve_obj, cut_profile):
@@ -106,8 +107,8 @@ def create_embankment_cutter(curve_obj, cut_profile):
     bpy.context.collection.objects.link(cutter_obj)
     bm = bmesh.new()
     points_3d = sample_curve(curve_obj)
-    vertices_along = []
-    for i, pt in enumerate(points_3d):
+    vertices_along_spline = []
+    for i, point in enumerate(points_3d):
         tangent = tangent_at(points_3d, i)
         z_axis = tangent
         up = Vector((0, 0, 1))
@@ -115,26 +116,26 @@ def create_embankment_cutter(curve_obj, cut_profile):
             up = Vector((0, 1, 0))
         x_axis = up.cross(z_axis).normalized()
         y_axis = z_axis.cross(x_axis).normalized()
-        rot = Matrix((x_axis, y_axis, z_axis)).transposed()
+        rotation = Matrix((x_axis, y_axis, z_axis)).transposed()
         row = []
-        for px, py in cut_profile:
-            local = Vector((px, py, 0))
-            vert = bm.verts.new(pt + rot @ local)
+        for point_x, point_y in cut_profile:
+            local = Vector((point_x, point_y, 0))
+            vert = bm.verts.new(point + rotation @ local)
             row.append(vert)
-        vertices_along.append(row)
+        vertices_along_spline.append(row)
     bm.verts.ensure_lookup_table()
-    for i in range(len(vertices_along) - 1):
-        ring1 = vertices_along[i]
-        ring2 = vertices_along[i + 1]
-        n = len(ring1)
+    for i in range(len(vertices_along_spline) - 1):
+        loop1 = vertices_along_spline[i]
+        loop2 = vertices_along_spline[i + 1]
+        n = len(loop1)
         for j in range(n):
-            v1 = ring1[j]
-            v2 = ring1[(j + 1) % n]
-            v3 = ring2[(j + 1) % n]
-            v4 = ring2[j]
-            bm.faces.new([v1, v2, v3, v4])
-    bm.faces.new(vertices_along[0])
-    bm.faces.new(list(reversed(vertices_along[-1])))
+            vert1 = loop1[j]
+            vert2 = loop1[(j + 1) % n]
+            vert3 = loop2[(j + 1) % n]
+            vert4 = loop2[j]
+            bm.faces.new([vert1, vert2, vert3, vert4])
+    bm.faces.new(vertices_along_spline[0])
+    bm.faces.new(list(reversed(vertices_along_spline[-1])))
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)

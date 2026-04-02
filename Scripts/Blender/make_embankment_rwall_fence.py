@@ -68,10 +68,10 @@ def sample_curve(curve_obj, step=0.1):
     points = [verts[0]]
     for i in range(1, len(verts)):
         start, end = verts[i - 1], verts[i]
-        seg_len = (end - start).length
-        if seg_len == 0:
+        segment_length = (end - start).length
+        if segment_length == 0:
             continue
-        num = max(int(seg_len / step), 1)
+        num = max(int(segment_length / step), 1)
         for j in range(1, num + 1):
             points.append(start + (end - start) * (j / num))
     return points
@@ -131,14 +131,14 @@ def create_profile_mesh(name, profile, points, vertical=False, start_offset=0.0,
     bpy.context.collection.objects.link(obj)
     bm = bmesh.new()
     rows = []
-    for i, pt in enumerate(points):
+    for i, point in enumerate(points):
         tangent = tangent_at(points, i)
-        offset_vec = Vector((0, 0, 0))
+        offset_vector = Vector((0, 0, 0))
         if i == 0 and start_offset != 0.0:
-            offset_vec = -tangent.normalized() * start_offset
+            offset_vector = -tangent.normalized() * start_offset
         elif i == len(points) - 1 and end_offset != 0.0:
-            offset_vec = tangent.normalized() * end_offset
-        pt_offset = pt + offset_vec
+            offset_vector = tangent.normalized() * end_offset
+        point_offset = point + offset_vector
         row = []
         if vertical:
             z_axis = Vector((0, 0, 1))
@@ -154,16 +154,21 @@ def create_profile_mesh(name, profile, points, vertical=False, start_offset=0.0,
             z_axis.normalize()
             x_axis = tangent.cross(z_axis).normalized()
             y_axis = z_axis.cross(x_axis).normalized()
-        rot = Matrix((x_axis, y_axis, z_axis)).transposed()
-        for px, py, _ in profile:
-            vert = bm.verts.new(pt_offset + rot @ Vector((px, 0, py)))
+        rotation = Matrix((x_axis, y_axis, z_axis)).transposed()
+        for point_x, point_y, _ in profile:
+            vert = bm.verts.new(point_offset + rotation @ Vector((point_x, 0, point_y)))
             row.append(vert)
         rows.append(row)
     bm.verts.ensure_lookup_table()
     for i in range(len(rows) - 1):
-        loop1, loop2 = rows[i], rows[i + 1]
+        loop1 = rows[i]
+        loop2 = rows[i + 1]
         for j in range(len(loop1) - 1):
-            create_face(bm, [loop1[j], loop2[j], loop2[j+1], loop1[j+1]])
+            vert1 = loop1[j]
+            vert2 = loop2[j]
+            vert3 = loop2[j + 1]
+            vert4 = loop1[j + 1]
+            create_face(bm, [vert1, vert2, vert3, vert4])
     create_face(bm, rows[0])
     create_face(bm, list(reversed(rows[-1])))
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
@@ -187,61 +192,62 @@ def build_rwall_fence():
     if not curve_obj:
         print(f"Curve '{CURVE_NAME}' not found")
         return
-    points = sample_curve(curve_obj, step=POST_LENGTH/4)
+    points = sample_curve(curve_obj, step=POST_LENGTH / 4)
     post_positions = [points[0]]
-    acc = 0
+    accum_dist = 0
     for i in range(1, len(points)):
-        acc += (points[i] - points[i - 1]).length
-        if acc >= MAX_POST_SPACING:
+        accum_dist += (points[i] - points[i - 1]).length
+        if accum_dist >= MAX_POST_SPACING:
             post_positions.append(points[i])
-            acc = 0
+            accum_dist = 0
     if post_positions[-1] != points[-1]:
         post_positions.append(points[-1])
     post_indices = []
-    for p in post_positions:
+    for post_position in post_positions:
         min_dist = float('inf')
         min_i = 0
-        for i, pt in enumerate(points):
-            d = (pt - p).length
-            if d < min_dist:
-                min_dist = d
+        for i, point in enumerate(points):
+            dist = (point - post_position).length
+            if dist < min_dist:
+                min_dist = dist
                 min_i = i
         post_indices.append(min_i)
     last_idx = post_indices[-1]
     if last_idx == len(points) - 1:
         tangent = tangent_at(points, last_idx)
-        new_pt = points[last_idx] + tangent * POST_LENGTH
-        points.append(new_pt)
+        new_point = points[last_idx] + tangent * POST_LENGTH
+        points.append(new_point)
         points[-1] = points[-1] - tangent * POST_LENGTH
         points[-2] = points[-2] - tangent * POST_LENGTH
         points[-3] = points[-3] - tangent * POST_LENGTH
-    for i in range(len(post_indices)-1):
+    for i in range(len(post_indices) - 1):
         start_idx = post_indices[i]
         end_idx = start_idx + int(POST_LENGTH / (points[1] - points[0]).length)
         end_idx = min(end_idx, post_indices[i + 1])
-        post_pts = [points[start_idx], points[end_idx]]
+        post_points = [points[start_idx], points[end_idx]]
         create_profile_mesh(
             f"{CURVE_NAME}_Post{i}",
             POST_PROFILE,
-            post_pts,
+            post_points,
             vertical=VERTICAL_POSTS,
             start_offset=START_OFFSET if i == 0 else 0.0,
             end_offset=-START_OFFSET if i == 0 else 0.0
         )
-        rail_pts = [points[end_idx], points[post_indices[i + 1]]]
-        if len(rail_pts) >= 2:
+        rail_points = [points[end_idx], points[post_indices[i + 1]]]
+        if len(rail_points) >= 2:
             create_profile_mesh(
                 f"{CURVE_NAME}_Rail{i}",
                 RAILING_PROFILE,
-                rail_pts,
+                rail_points,
                 vertical=VERTICAL_POSTS,
                 start_offset=START_OFFSET if i == 0 else 0.0,
                 end_offset=END_OFFSET if i == len(post_indices) - 2 else 0.0
             )
+    last_post_points = points[post_indices[-1]:post_indices[-1] + 2]
     create_profile_mesh(
         f"{CURVE_NAME}_PostEnd",
         POST_PROFILE,
-        points[post_indices[-1]:post_indices[-1] + 2],
+        last_post_points,
         vertical=VERTICAL_POSTS,
         start_offset=-END_OFFSET,
         end_offset=END_OFFSET
