@@ -19,7 +19,7 @@ import bpy
 import bmesh
 
 
-MATERIAL_NAME = "Embankment"
+MATERIAL_NAME = "Ground"
 
 
 def assign_material_to_selection(material_name):
