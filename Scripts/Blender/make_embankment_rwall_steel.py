@@ -25,6 +25,7 @@ import math
 EDGE_CURVE = "EdgeCurveRWall2"
 UNDERPASS_CURVE = "Underpass"
 
+CONCRETE_EDGE = True
 CONCRETE_EDGE_THICKNESS = 0.6
 CONCRETE_EDGE_HEIGHT = 0.5
 CONCRETE_EDGE_OFFSET = 0.1
@@ -180,6 +181,10 @@ def build_steel_rwall():
     bm.free()
 
 
+def build_steel_edge():
+    pass
+
+
 def build_concrete_edge():
     """
     Builds a concrete edge retaining wall along an edge curve.
@@ -253,4 +258,7 @@ def build_concrete_edge():
 
 
 build_steel_rwall()
-build_concrete_edge()
+if CONCRETE_EDGE:
+    build_concrete_edge()
+else:
+    build_steel_edge()

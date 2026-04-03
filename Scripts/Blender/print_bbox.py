@@ -61,7 +61,7 @@ def get_objects_in_collection(collection):
     return objects
 
 
-def calc_bbox(collection_name):
+def print_bbox(collection_name):
     """
     Calculates and prints the bounding box of all mesh objects in a given Blender collection.
 
@@ -85,4 +85,4 @@ def calc_bbox(collection_name):
 
 
 collection_name = "MAIN_0150"
-calc_bbox(collection_name)
+print_bbox(collection_name)

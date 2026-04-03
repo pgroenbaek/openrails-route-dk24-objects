@@ -20,11 +20,11 @@ import bmesh
 from mathutils import Vector, Matrix
 
 
-CURVE_NAME = "RailingCurve3"
+CURVE_NAME = "RailingCurve1"
 
-START_POST_OFFSET = -0.15
-END_POST_OFFSET = -0.15
-X_OFFSET = 0.25
+START_POST_OFFSET = -0.25
+END_POST_OFFSET = 0.25
+X_OFFSET = -0.15
 
 POST_LENGTH = 0.1
 VERTICAL_POSTS = True
@@ -91,52 +91,52 @@ def tangent_at(points, i):
 
 
 def adjust_points_with_offset(points, start_offset=0.0, end_offset=0.0):
-    """Adjust points along a polyline by applying offsets at the start and end.
+    """
+    Extend or shrink a polyline by applying offsets to the points at the start and end. Removes
+    existing points if necessary when shrinking.
 
     Args:
-        points (list): Sequence of points representing the polyline.
-        start_offset (float): Offset applied at the start of the polyline.
-        end_offset (float): Offset applied at the end of the polyline.
+        points (list[bpy.types.Vector]): Sequence of points representing the polyline.
+        start_offset (float, optional): Offset applied at the start of the polyline. Defaults to 0.0.
+        end_offset (float, optional): Offset applied at the end of the polyline. Defaults to 0.0.
 
     Returns:
-        list: A new list of points with the offsets applied.
+        list[bpy.types.Vector]: A new list of points with the offsets applied.
     """
     if len(points) < 2:
-        return points
-    points_new = points.copy()
-    current_offset = start_offset
-    point_index = 0
-    while current_offset != 0 and point_index < len(points_new) - 1:
-        segment_vector = points_new[point_index + 1] - points_new[point_index]
-        segment_length = segment_vector.length
-        if current_offset > 0:
-            points_new.insert(0, points_new[0] - segment_vector.normalized() * current_offset)
-            current_offset = 0
+        return points.copy()
+    lengths = [0.0]
+    for i in range(1, len(points)):
+        lengths.append(lengths[-1] + (points[i] - points[i - 1]).length)
+    total_length = lengths[-1]
+    new_start = start_offset
+    new_end = total_length + end_offset
+    result = []
+    if new_start < 0:
+        tangent = (points[1] - points[0]).normalized()
+        result.append(points[0] + tangent * new_start)
+        new_start = 0
+    for i in range(len(points) - 1):
+        if lengths[i] <= new_start <= lengths[i + 1]:
+            t = (new_start - lengths[i]) / (lengths[i + 1] - lengths[i])
+            result.append(points[i].lerp(points[i + 1], t))
+            start_index = i
+            break
+    for i in range(start_index + 1, len(points)):
+        if lengths[i] < new_end:
+            result.append(points[i])
         else:
-            if abs(current_offset) < segment_length:
-                points_new[point_index] = points_new[point_index] + segment_vector.normalized() * abs(current_offset)
-                current_offset = 0
-            else:
-                current_offset += segment_length
-                point_index += 1
-    points_new = points_new[point_index:]
-    current_offset = end_offset
-    point_index = len(points_new) - 1
-    while current_offset != 0 and point_index > 0:
-        segment_vector = points_new[point_index] - points_new[point_index - 1]
-        segment_length = segment_vector.length
-        if current_offset > 0:
-            points_new.append(points_new[-1] + segment_vector.normalized() * current_offset)
-            current_offset = 0
-        else:
-            if abs(current_offset) < segment_length:
-                points_new[point_index] = points_new[point_index] - segment_vector.normalized() * abs(current_offset)
-                current_offset = 0
-            else:
-                current_offset += segment_length
-                point_index -= 1
-    points_new = points_new[:point_index + 1]
-    return points_new
+            break
+    if new_end > total_length:
+        tangent = (points[-1] - points[-2]).normalized()
+        result.append(points[-1] + tangent * (new_end - total_length))
+    else:
+        for i in range(len(points) - 1):
+            if lengths[i] <= new_end <= lengths[i + 1]:
+                t = (new_end - lengths[i]) / (lengths[i + 1] - lengths[i])
+                result.append(points[i].lerp(points[i + 1], t))
+                break
+    return result
 
 
 def create_profile_mesh(name, profile, points, start_offset=0.0, end_offset=0.0):
