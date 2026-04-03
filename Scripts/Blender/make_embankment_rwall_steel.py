@@ -17,27 +17,29 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
 import bmesh
-from mathutils import Vector
 import math
+from mathutils import Vector
 
-# TODO: materials + UV mapping
 
-EDGE_CURVE = "EdgeCurveRWall2"
+EDGE_CURVE = "RailingCurve5"
 UNDERPASS_CURVE = "Underpass"
 
-CONCRETE_EDGE = True
-CONCRETE_EDGE_THICKNESS = 0.6
-CONCRETE_EDGE_HEIGHT = 0.5
-CONCRETE_EDGE_OFFSET = 0.1
-CONCRETE_MATERIAL_NAME = "Concrete"
+RWALL_EDGE_THICKNESS = 0.5 # 0.5
+RWALL_EDGE_HEIGHT = 0.1 # 0.3 for Concrete, 0.1 for RustySteel
+RWALL_EDGE_OFFSET = 0.05
+RWALL_EDGE_MATERIAL_NAME = "RustySteel" # Concrete, RustySteel
+RWALL_EDGE_U_PER_METER = 0.1
+RWALL_EDGE_V_PER_METER = 0.1
 
-STEEL_ZIGZAG = False
-STEEL_ZIGZAG_AMPLITUDE = 0.2
-STEEL_STEP_LENGTH = 0.6
-STEEL_FLIP_FACES = True
-STEEL_MATERIAL_NAME = "RustySteel"
+RWALL_ZIGZAG = True
+RWALL_FLIP_FACES = True
+RWALL_MATERIAL_NAME = "RustySteel" # RustySteel
+RWALL_U_PER_METER = 0.1
+RWALL_V_PER_METER = 0.1
 
-PHASE_SEQUENCE = [2, 0, 2, 1] # 0=left, 1=right, 2=straight
+ZIGZAG_AMPLITUDE = 0.2
+ZIGZAG_STEP_LENGTH = 0.6
+ZIGZAG_PHASE_SEQUENCE = [2, 0, 2, 1] # 0=left, 1=right, 2=straight
 
 
 def sample_curve_eval(curve_obj):
@@ -117,14 +119,35 @@ def closest_point_xy(target_point, points):
     return closest
 
 
+def split_crossing_z(v_bottom_z, v_top_z, next_bottom_z, next_top_z):
+    """
+    Computes Z-axis crossover points for a wall segment and returns interpolation fractions.
+
+    Args:
+        v_bottom_z (float): Z-coordinate of the bottom vertex of the current segment.
+        v_top_z (float): Z-coordinate of the top vertex of the current segment.
+        next_bottom_z (float): Z-coordinate of the bottom vertex of the next segment.
+        next_top_z (float): Z-coordinate of the top vertex of the next segment.
+
+    Returns:
+        List[float]: Sorted list of interpolation fractions (between 0.0 and 1.0) 
+        indicating where along the segment a split is needed. Empty list if no crossover.
+    """
+    fractions = []
+    if (v_bottom_z - next_bottom_z) * (v_top_z - next_top_z) < 0:
+        t = (v_bottom_z - next_bottom_z) / ((v_bottom_z - next_bottom_z) - (v_top_z - next_top_z))
+        fractions.append(max(0.0, min(1.0, t)))
+    return sorted(fractions)
+
 def build_steel_rwall():
     """
     Builds a steel retaining wall along an edge curve.
 
     Notes:
-        - Wall columns are positioned along the edge curve at intervals defined by STEEL_STEP_LENGTH.
-        - Columns follow a zigzag pattern defined by PHASE_SEQUENCE and STEEL_ZIGZAG_AMPLITUDE.
-        - Wall height is determined relative to the underpass curve and CONCRETE_EDGE_HEIGHT.
+        - Wall columns are positioned along the edge curve at intervals defined by ZIGZAG_STEP_LENGTH.
+        - Columns follow a zigzag pattern defined by ZIGZAG_PHASE_SEQUENCE and ZIGZAG_AMPLITUDE.
+        - Wall height is determined relative to the underpass curve and RWALL_EDGE_HEIGHT.
+        - Handles crossover between steel bottom and concrete bottom.
     """
     edge_curve = bpy.data.objects[EDGE_CURVE]
     under_curve = bpy.data.objects[UNDERPASS_CURVE]
@@ -134,66 +157,99 @@ def build_steel_rwall():
     mesh = bpy.data.meshes.new("SteelRetainingWall")
     obj = bpy.data.objects.new("SteelRetainingWall", mesh)
     bpy.context.collection.objects.link(obj)
+    material = bpy.data.materials.get(RWALL_MATERIAL_NAME)
+    if material is None:
+        material = bpy.data.materials.new(RWALL_MATERIAL_NAME)
+    if material.name not in obj.data.materials:
+        obj.data.materials.append(material)
+    material_index = obj.data.materials.find(material.name)
     bm = bmesh.new()
-    columns = []
+    uv_layer = bm.loops.layers.uv.new("UVMap")
     cumulative_offset = 0.0
-    if STEEL_ZIGZAG:
-        step_length = STEEL_STEP_LENGTH
-    else:
-        step_length = STEEL_STEP_LENGTH * 8
+    step_length = ZIGZAG_STEP_LENGTH if RWALL_ZIGZAG else ZIGZAG_STEP_LENGTH * 8
     segment_count = math.ceil(edge_total / step_length)
+    columns = []
     for i in range(segment_count + 1):
         dist = min(i * step_length, edge_total)
         edge_point = sample_by_distance(edge_points, edge_lengths, edge_total, dist)
         under_point = closest_point_xy(edge_point, under_points)
         steel_bottom = under_point.z - 0.5
-        concrete_bottom_z = edge_point.z - CONCRETE_EDGE_HEIGHT
+        concrete_bottom_z = edge_point.z - RWALL_EDGE_HEIGHT
         steel_top = max(concrete_bottom_z, steel_bottom)
-        next_dist = min(dist + STEEL_STEP_LENGTH, edge_total)
+        next_dist = min(dist + ZIGZAG_STEP_LENGTH, edge_total)
         edge_point_next = sample_by_distance(edge_points, edge_lengths, edge_total, next_dist)
         direction = (edge_point_next - edge_point).to_2d().normalized()
-        if STEEL_ZIGZAG:
-            phase = PHASE_SEQUENCE[i % len(PHASE_SEQUENCE)]
+        if RWALL_ZIGZAG:
+            phase = ZIGZAG_PHASE_SEQUENCE[i % len(ZIGZAG_PHASE_SEQUENCE)]
             if phase == 0:
-                cumulative_offset -= STEEL_ZIGZAG_AMPLITUDE
+                cumulative_offset -= ZIGZAG_AMPLITUDE
             elif phase == 1:
-                cumulative_offset += STEEL_ZIGZAG_AMPLITUDE
-        else:
-            cumulative_offset = 0.0
+                cumulative_offset += ZIGZAG_AMPLITUDE
         perp = -Vector((-direction.y, direction.x, 0))
         steel_offset = perp * cumulative_offset
         v_bottom = bm.verts.new(Vector((edge_point.x, edge_point.y, steel_bottom)) + steel_offset)
         v_top = bm.verts.new(Vector((edge_point.x, edge_point.y, steel_top)) + steel_offset)
         columns.append((v_bottom, v_top))
     bm.verts.ensure_lookup_table()
+    running_length = 0.0
     for i in range(len(columns) - 1):
-        c1 = columns[i]
-        c2 = columns[i + 1]
-        if (c1[0].co.z == c1[1].co.z) and (c2[0].co.z == c2[1].co.z):
-            continue
-        if STEEL_FLIP_FACES:
-            bm.faces.new([c1[1], c2[1], c2[0], c1[0]])
-        else:
-            bm.faces.new([c1[0], c2[0], c2[1], c1[1]])
+        c1_bottom, c1_top = columns[i]
+        c2_bottom, c2_top = columns[i + 1]
+        fractions = split_crossing_z(c1_bottom.co.z, c1_top.co.z, c2_bottom.co.z, c2_top.co.z)
+        split_points = [0.0] + fractions + [1.0]
+        for j in range(len(split_points) - 1):
+            t0 = split_points[j]
+            t1 = split_points[j + 1]
+            b_start = c1_bottom.co.lerp(c2_bottom.co, t0)
+            t_start = c1_top.co.lerp(c2_top.co, t0)
+            b_end = c1_bottom.co.lerp(c2_bottom.co, t1)
+            t_end = c1_top.co.lerp(c2_top.co, t1)
+            segment_length = (b_end - b_start).length
+            u1 = running_length * RWALL_U_PER_METER
+            u2 = (running_length + segment_length) * RWALL_U_PER_METER
+            running_length += segment_length
+            height1 = t_start.z - b_start.z
+            height2 = t_end.z - b_end.z
+            v1 = height1 * RWALL_V_PER_METER
+            v2 = height2 * RWALL_V_PER_METER
+            if RWALL_FLIP_FACES:
+                face = bm.faces.new([
+                    bm.verts.new(t_start),
+                    bm.verts.new(t_end),
+                    bm.verts.new(b_end),
+                    bm.verts.new(b_start)])
+                loops = face.loops
+                loops[0][uv_layer].uv = (u1, v1)
+                loops[1][uv_layer].uv = (u2, v2)
+                loops[2][uv_layer].uv = (u2, 0)
+                loops[3][uv_layer].uv = (u1, 0)
+            else:
+                face = bm.faces.new([
+                    bm.verts.new(b_start),
+                    bm.verts.new(b_end),
+                    bm.verts.new(t_end),
+                    bm.verts.new(t_start)])
+                loops = face.loops
+                loops[0][uv_layer].uv = (u1, 0)
+                loops[1][uv_layer].uv = (u2, 0)
+                loops[2][uv_layer].uv = (u2, v2)
+                loops[3][uv_layer].uv = (u1, v1)
+            face.material_index = material_index
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
     bm.free()
 
 
-def build_steel_edge():
-    pass
-
-
-def build_concrete_edge():
+def build_steel_rwall_edge():
     """
-    Builds a concrete edge retaining wall along an edge curve.
+    Builds an upper edge for the retaining wall along an edge curve.
 
     Notes:
         - Wall geometry is created between the edge curve and underpass curve.
-        - Wall thickness is defined by CONCRETE_EDGE_THICKNESS.
-        - Concrete height is limited by CONCRETE_EDGE_HEIGHT and underpass elevation.
-        - Generates front/back and top/bottom faces of the wall mesh.
+        - Wall thickness is defined by RWALL_EDGE_THICKNESS.
+        - Concrete height is limited by RWALL_EDGE_HEIGHT and underpass elevation.
+        - Handles crossover along Z-axis and creates faces for each section.
     """
     edge_curve = bpy.data.objects[EDGE_CURVE]
     under_curve = bpy.data.objects[UNDERPASS_CURVE]
@@ -202,54 +258,122 @@ def build_concrete_edge():
     mesh = bpy.data.meshes.new("SteelRetainingWallEdge")
     obj = bpy.data.objects.new("SteelRetainingWallEdge", mesh)
     bpy.context.collection.objects.link(obj)
+    material = bpy.data.materials.get(RWALL_EDGE_MATERIAL_NAME)
+    if material is None:
+        material = bpy.data.materials.new(RWALL_EDGE_MATERIAL_NAME)
+    if material.name not in obj.data.materials:
+        obj.data.materials.append(material)
+    material_index = obj.data.materials.find(material.name)
     bm = bmesh.new()
-    front_bottom = []
-    front_top = []
-    back_bottom = []
-    back_top = []
+    uv_layer = bm.loops.layers.uv.new("UVMap")
+    columns = []
     for i, edge_point in enumerate(edge_points):
         under_point = closest_point_xy(edge_point, under_points)
-        total_height = edge_point.z - under_point.z + 0.5
-        if total_height <= 0:
-            front_bottom.append(None)
-            front_top.append(None)
-            back_bottom.append(None)
-            back_top.append(None)
+        concrete_top_z = edge_point.z
+        concrete_bottom_z = max(edge_point.z - RWALL_EDGE_HEIGHT, under_point.z - RWALL_EDGE_HEIGHT - 0.5)
+        if concrete_top_z - concrete_bottom_z <= 0:
+            columns.append((None, None, None, None))
             continue
-        if i < len(edge_points) - 1:
-            direction = (edge_points[i + 1] - edge_points[i]).to_2d().normalized()
-        else:
-            direction = (edge_points[i] - edge_points[i - 1]).to_2d().normalized()
-        #edge_offset = Vector((-direction.y, direction.x, 0)) * (CONCRETE_EDGE_THICKNESS / 2)
-        #concrete_top_z = edge_point.z
-        #concrete_bottom_z = max(edge_point.z - CONCRETE_EDGE_HEIGHT, under_point.z - 0.5)
+        direction = (edge_points[i + 1] - edge_points[i]).to_2d().normalized() if i < len(edge_points) - 1 else (edge_points[i] - edge_points[i - 1]).to_2d().normalized()
         perp = Vector((-direction.y, direction.x, 0))
-        thickness_offset = perp * (CONCRETE_EDGE_THICKNESS / 2)
-        edge_offset = perp * CONCRETE_EDGE_OFFSET
+        thickness_offset = perp * (RWALL_EDGE_THICKNESS / 2)
+        edge_offset = perp * RWALL_EDGE_OFFSET
         edge_pos = Vector((edge_point.x, edge_point.y, 0)) + edge_offset
         fb = bm.verts.new(Vector((edge_pos.x, edge_pos.y, concrete_bottom_z)) - thickness_offset)
         bb = bm.verts.new(Vector((edge_pos.x, edge_pos.y, concrete_bottom_z)) + thickness_offset)
         ft = bm.verts.new(Vector((edge_pos.x, edge_pos.y, concrete_top_z)) - thickness_offset)
         bt = bm.verts.new(Vector((edge_pos.x, edge_pos.y, concrete_top_z)) + thickness_offset)
-        front_bottom.append(fb)
-        front_top.append(ft)
-        back_bottom.append(bb)
-        back_top.append(bt)
+        columns.append((fb, ft, bb, bt))
     bm.verts.ensure_lookup_table()
-    for i in range(len(edge_points) - 1):
-        if not front_bottom[i] or not front_bottom[i + 1]:
+    running_length = 0.0
+    for i in range(len(columns) - 1):
+        c1_fb, c1_ft, c1_bb, c1_bt = columns[i]
+        c2_fb, c2_ft, c2_bb, c2_bt = columns[i + 1]
+        if c1_fb is None or c2_fb is None:
             continue
-        bm.faces.new([front_bottom[i], front_bottom[i + 1], front_top[i + 1], front_top[i]])
-        bm.faces.new([back_bottom[i], back_top[i], back_top[i + 1], back_bottom[i + 1]])
-        bm.faces.new([front_top[i], front_top[i + 1], back_top[i + 1], back_top[i]])
-        bm.faces.new([front_bottom[i], back_bottom[i], back_bottom[i + 1], front_bottom[i + 1]])
-    for i, fb in enumerate(front_bottom):
-        if fb:
-            bm.faces.new([front_bottom[i], front_top[i], back_top[i], back_bottom[i]])
+        fractions = split_crossing_z(c1_fb.co.z, c1_ft.co.z, c2_fb.co.z, c2_ft.co.z)
+        split_points = [0.0] + fractions + [1.0]
+        for j in range(len(split_points) - 1):
+            t0 = split_points[j]
+            t1 = split_points[j + 1]
+            fb_start = bm.verts.new(c1_fb.co.lerp(c2_fb.co, t0))
+            ft_start = bm.verts.new(c1_ft.co.lerp(c2_ft.co, t0))
+            bb_start = bm.verts.new(c1_bb.co.lerp(c2_bb.co, t0))
+            bt_start = bm.verts.new(c1_bt.co.lerp(c2_bt.co, t0))
+            fb_end = bm.verts.new(c1_fb.co.lerp(c2_fb.co, t1))
+            ft_end = bm.verts.new(c1_ft.co.lerp(c2_ft.co, t1))
+            bb_end = bm.verts.new(c1_bb.co.lerp(c2_bb.co, t1))
+            bt_end = bm.verts.new(c1_bt.co.lerp(c2_bt.co, t1))
+            #if fb_start.co.z > ft_start.co.z:
+            #    fb_start, ft_start = ft_start, fb_start
+            #if bb_start.co.z > bt_start.co.z:
+            #    bb_start, bt_start = bt_start, bb_start
+            #if fb_end.co.z > ft_end.co.z:
+            #    fb_end, ft_end = ft_end, fb_end
+            #if bb_end.co.z > bt_end.co.z:
+            #    bb_end, bt_end = bt_end, bb_end
+            segment_length = (fb_end.co - fb_start.co).length
+            u1 = running_length * RWALL_EDGE_U_PER_METER
+            u2 = (running_length + segment_length) * RWALL_EDGE_U_PER_METER
+            running_length += segment_length
+            height_start = ft_start.co.z - fb_start.co.z
+            height_end = ft_end.co.z - fb_end.co.z
+            v1 = height_start * RWALL_EDGE_V_PER_METER
+            v2 = height_end * RWALL_EDGE_V_PER_METER
+            v_top = RWALL_EDGE_THICKNESS * RWALL_EDGE_V_PER_METER
+            face = bm.faces.new([fb_start, fb_end, ft_end, ft_start])
+            face.material_index = material_index
+            loops = face.loops
+            loops[0][uv_layer].uv = (u1, 0)
+            loops[1][uv_layer].uv = (u2, 0)
+            loops[2][uv_layer].uv = (u2, v2)
+            loops[3][uv_layer].uv = (u1, v1)
+            face = bm.faces.new([bb_start, bt_start, bt_end, bb_end])
+            face.material_index = material_index
+            loops = face.loops
+            loops[0][uv_layer].uv = (u1, 0)
+            loops[1][uv_layer].uv = (u1, v1)
+            loops[2][uv_layer].uv = (u2, v2)
+            loops[3][uv_layer].uv = (u2, 0)
+            face = bm.faces.new([ft_start, ft_end, bt_end, bt_start])
+            face.material_index = material_index
+            loops = face.loops
+            loops[0][uv_layer].uv = (u1, 0)
+            loops[1][uv_layer].uv = (u2, 0)
+            loops[2][uv_layer].uv = (u2, v_top)
+            loops[3][uv_layer].uv = (u1, v_top)
+            face = bm.faces.new([fb_start, bb_start, bb_end, fb_end])
+            face.material_index = material_index
+            loops = face.loops
+            loops[0][uv_layer].uv = (u1, 0)
+            loops[1][uv_layer].uv = (u1, v_top)
+            loops[2][uv_layer].uv = (u2, v_top)
+            loops[3][uv_layer].uv = (u2, 0)
+    for c_fb, c_ft, c_bb, c_bt in columns:
+        if c_fb:
+            start_face = bm.faces.new([c_fb, c_bb, c_bt, c_ft])
+            start_face.material_index = material_index
+            height = c_ft.co.z - c_fb.co.z
+            v = height * RWALL_EDGE_V_PER_METER
+            u = RWALL_EDGE_THICKNESS * RWALL_EDGE_U_PER_METER
+            loops = start_face.loops
+            loops[0][uv_layer].uv = (0, 0)
+            loops[1][uv_layer].uv = (u, 0)
+            loops[2][uv_layer].uv = (u, v)
+            loops[3][uv_layer].uv = (0, v)
             break
-    for i in reversed(range(len(front_bottom))):
-        if front_bottom[i]:
-            bm.faces.new([front_bottom[i], back_bottom[i], back_top[i], front_top[i]])
+    for c_fb, c_ft, c_bb, c_bt in reversed(columns):
+        if c_fb:
+            end_face = bm.faces.new([c_fb, c_ft, c_bt, c_bb])
+            end_face.material_index = material_index
+            height = c_ft.co.z - c_fb.co.z
+            v = height * RWALL_EDGE_V_PER_METER
+            u = RWALL_EDGE_THICKNESS * RWALL_EDGE_U_PER_METER
+            loops = end_face.loops
+            loops[0][uv_layer].uv = (0, 0)
+            loops[1][uv_layer].uv = (0, v)
+            loops[2][uv_layer].uv = (u, v)
+            loops[3][uv_layer].uv = (u, 0)
             break
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -258,7 +382,4 @@ def build_concrete_edge():
 
 
 build_steel_rwall()
-if CONCRETE_EDGE:
-    build_concrete_edge()
-else:
-    build_steel_edge()
+build_steel_rwall_edge()
