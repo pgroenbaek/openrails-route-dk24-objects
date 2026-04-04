@@ -212,9 +212,9 @@ def sweep_profile_along_points(points, profile):
     return obj
 
 
-def build_standard_tunnel():
+def build_wide_tunnel():
     """
-    Builds a standard tunnel mesh along the underpass curve.
+    Builds a wide tunnel mesh along the underpass curve.
 
     Notes:
         - Resamples the underpass curve to uniform spacing.
@@ -226,4 +226,4 @@ def build_standard_tunnel():
     sweep_profile_along_points(underpass_points, TUNNEL_PROFILE)
 
 
-build_standard_tunnel()
+build_wide_tunnel()
