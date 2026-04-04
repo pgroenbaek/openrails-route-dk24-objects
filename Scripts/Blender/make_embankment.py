@@ -75,12 +75,12 @@ EMBANKMENT_PROFILE_TRACKBED_MULTI_CENTER = [
 ]
 
 APPLY_EMBANKMENT_PROFILES = {
-    "Overpass1": [ # curve name
+    "Carspawner0_1": [ # curve name
         # profile, material name, tiling per meter, tile direction
         (EMBANKMENT_PROFILE_TRACKBED_MULTI_RIGHT, "Trackbed", TRACKBED_V_PER_METER, TileDirection.V),
         (EMBANKMENT_PROFILE_TRACKSIDE_RIGHT, "Embankment", EMBANKMENT_U_PER_METER, TileDirection.U),
     ],
-    "Overpass2": [
+    "Carspawner2_3": [
         (EMBANKMENT_PROFILE_TRACKBED_MULTI_LEFT, "Trackbed", TRACKBED_V_PER_METER, TileDirection.V),
         (EMBANKMENT_PROFILE_TRACKSIDE_LEFT, "Embankment", EMBANKMENT_U_PER_METER, TileDirection.U)
     ]

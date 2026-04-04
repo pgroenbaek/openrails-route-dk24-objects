@@ -21,7 +21,7 @@ from mathutils import Vector
 
 
 INPUT_FOLDER = "D:/Games/Open Rails/Content/PGA DK24/DATA/trackcenters"
-STATION_NAME = "EmbankmentTest"
+STATION_NAME = "DKEmb_Bred_181_8"
 
 
 def create_platform_curves(data):

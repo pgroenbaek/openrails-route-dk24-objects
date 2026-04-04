@@ -21,25 +21,60 @@ from mathutils import Vector, Matrix
 
 
 SAMPLE_INTERVAL = 1.0
-WALL_THICKNESS = 0.7
+WALL_THICKNESS = 1 # 0.7=standard, 1=wide
+X_OFFSET = 0.0
+
 SUBDIVIDE_CUTS = 1
 
-STANDARD_CUT_PROFILE = [
-    (-3.7 - WALL_THICKNESS, -10.0 - WALL_THICKNESS),
-    (-3.7 - WALL_THICKNESS, 7.9 + WALL_THICKNESS),
-    (3.7 + WALL_THICKNESS, 7.9 + WALL_THICKNESS),
-    (3.7 + WALL_THICKNESS, -10.0 - WALL_THICKNESS),
+STANDARD_TUNNEL_CUT_PROFILE = [
+    (-3.7 + X_OFFSET - WALL_THICKNESS, -10.0 - WALL_THICKNESS),
+    (-3.7 + X_OFFSET - WALL_THICKNESS, 7.9 + WALL_THICKNESS),
+    (3.7 + X_OFFSET + WALL_THICKNESS, 7.9 + WALL_THICKNESS),
+    (3.7 + X_OFFSET + WALL_THICKNESS, -10.0 - WALL_THICKNESS),
+]
+
+WIDE_TUNNEL_CUT_PROFILE_SINGLE = [
+    (-4.7 + X_OFFSET - WALL_THICKNESS, -10.0),
+    (-4.7 + X_OFFSET - WALL_THICKNESS, 0.0),
+    (-6.5 + X_OFFSET - WALL_THICKNESS, 1.5),
+    (-3.0 + X_OFFSET - (WALL_THICKNESS / 2), 7.5 + (WALL_THICKNESS / 2)),
+    (0.0 + X_OFFSET, 7.5 + (WALL_THICKNESS / 2)),
+    (3.0 + X_OFFSET + (WALL_THICKNESS / 2), 7.5 + (WALL_THICKNESS / 2)),
+    (6.5 + X_OFFSET + WALL_THICKNESS, 1.5),
+    (4.7 + X_OFFSET + WALL_THICKNESS, 0.0),
+    (4.7 + X_OFFSET + WALL_THICKNESS, -10.0),
+]
+
+WIDE_TUNNEL_CUT_PROFILE_DOUBLE_LEFT = [
+    (-2.5 + X_OFFSET, -10.0),
+    (-2.5 + X_OFFSET, 7.5 + (WALL_THICKNESS / 2)),
+    (0.0 + X_OFFSET, 7.5 + (WALL_THICKNESS / 2)),
+    (3.0 + X_OFFSET + (WALL_THICKNESS / 2), 7.5 + (WALL_THICKNESS / 2)),
+    (6.5 + X_OFFSET + WALL_THICKNESS, 1.5),
+    (4.7 + X_OFFSET + WALL_THICKNESS, 0.0),
+    (4.7 + X_OFFSET + WALL_THICKNESS, -10.0),
+]
+
+WIDE_TUNNEL_CUT_PROFILE_DOUBLE_RIGHT = [
+    (-4.7 + X_OFFSET - WALL_THICKNESS, -10.0),
+    (-4.7 + X_OFFSET - WALL_THICKNESS, 0.0),
+    (-6.5 + X_OFFSET - WALL_THICKNESS, 1.5),
+    (-3.0 + X_OFFSET - (WALL_THICKNESS / 2), 7.5 + (WALL_THICKNESS / 2)),
+    (0.0 + X_OFFSET, 7.5 + (WALL_THICKNESS / 2)),
+    (2.5 + X_OFFSET, 7.5 + (WALL_THICKNESS / 2)),
+    (2.5 + X_OFFSET, -10.0),
 ]
 
 EMBANKMENT_OBJECT_NAMES = [
-    "Overpass1_Embankment",
-    "Overpass1_Embankment.001",
-    "Overpass2_Embankment",
-    "Overpass2_Embankment.001",
+    "Carspawner0_1.003_Embankment",
+    "Carspawner0_1.003_Embankment.001",
+    "Carspawner2_3.003_Embankment",
+    "Carspawner2_3.003_Embankment.001",
 ]
 
 APPLY_CUT_PROFILES = {
-    "Underpass": STANDARD_CUT_PROFILE
+    "Underpass1": WIDE_TUNNEL_CUT_PROFILE_DOUBLE_RIGHT,
+    "Underpass2": WIDE_TUNNEL_CUT_PROFILE_DOUBLE_LEFT
 }
 
 
@@ -159,11 +194,13 @@ def triangulate_mesh(obj):
 
 def apply_boolean_cut(target_obj, cutter_obj):
     """
-    Applies a boolean difference modifier to subtract a cutter from a target object.
+    Applies a boolean difference modifier to subtract a cutter object from a target object.
+
+    This removes geometry from the target object wherever it overlaps the cutter.
 
     Args:
-        target_obj (bpy.types.Object): The object to be cut.
-        cutter_obj (bpy.types.Object): The cutter object used for the boolean operation.
+        target_obj (bpy.types.Object): The Blender object to be trimmed or cut.
+        cutter_obj (bpy.types.Object): The Blender object used as the cutting volume.
     """
     bool_mod = target_obj.modifiers.new("EmbankmentCut", 'BOOLEAN')
     bool_mod.operation = 'DIFFERENCE'
@@ -175,14 +212,19 @@ def apply_boolean_cut(target_obj, cutter_obj):
     bpy.ops.object.modifier_apply(modifier="EmbankmentCut")
 
 
-def build_underpass_cut():
+def perform_embankment_cut():
     """
-    Builds boolean cut meshes along predefined curves for all embankments.
+    Applies boolean cuts to all embankment objects along predefined curves.
+
+    Workflow for each curve and cut profile:
+        1. Generate a cutter mesh from the curve and cut profile using `create_embankment_cutter`.
+        2. Triangulate the cutter mesh for boolean reliability.
+        3. Apply a boolean difference to each embankment object to remove geometry under the cutter.
 
     Notes:
-        - Iterates over curves and cut profiles defined in APPLY_CUT_PROFILES.
-        - Creates cutters using `create_embankment_cutter`, triangulates them, and applies boolean cuts.
-        - Supports multiple embankment objects and multiple profiles per curve.
+        - Supports multiple embankment objects and multiple cut profiles per curve.
+        - Modifies the embankment objects in-place.
+        - Cutters are generated dynamically and applied immediately; they do not persist in the scene.
     """
     for curve_name, cut_profiles in APPLY_CUT_PROFILES.items():
         curve_obj = bpy.data.objects[curve_name]
@@ -196,4 +238,4 @@ def build_underpass_cut():
                 apply_boolean_cut(embankment_obj, cutter_obj)
 
 
-build_underpass_cut()
+perform_embankment_cut()

@@ -21,7 +21,7 @@ from mathutils import Vector
 
 
 INPUT_FOLDER = "D:/Games/Open Rails/Content/PGA DK24/DATA/roadcenters"
-ROADCENTER_INPUT_NAME = "Test"
+ROADCENTER_INPUT_NAME = "DKEmb_Bred_181_8"
 
 
 def create_carspawner_curves(data):
