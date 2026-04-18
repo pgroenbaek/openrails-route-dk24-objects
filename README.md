@@ -10,7 +10,22 @@
 
 Blender models and textures for the [Denmark 2024 Open Rails route](https://github.com/pgroenbaek/openrails-route-dk24).
 
-## License:
+## Usage
+
+### Prerequisites
+
+- Blender 4.2+
+- GIMP 2.x-ish
+
+### Opening creative assets
+
+Any `.xcf` and `.blend` files can be opened using GIMP and Blender respectively.
+
+### Running the Python scripts
+
+Python scripts found within the [/Scripts](/Scripts) folder can be run pasting them into GIMP's and Blender's scripting consoles.
+
+## License
 
 This repository contains both source code and creative assets, which are licensed separately:
 
@@ -27,7 +42,7 @@ See [LICENSE_CC-BY-NC-SA-4.0.txt](/LICENSE_CC-BY-NC-SA-4.0.txt) for the full lic
 [![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
 
 
-## Credits:
+## Credits
 
 Special thanks to:
 - [Stefmiz](https://www.youtube.com/@stefmiz ) for his blender tutorials on YouTube (those were for Trainz but were very useful regardless).
