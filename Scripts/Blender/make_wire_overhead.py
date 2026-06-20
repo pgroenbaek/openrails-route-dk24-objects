@@ -19,12 +19,13 @@ import bpy
 from math import sin, cos, pi
 from mathutils import Vector
 
-# TODO UV mapping
 # TODO Configure offsets in MAST_TYPES dict
 # TODO Load mast positions from world files based on UiD's and tile X/Y
 # TODO Project mast positions onto the curve to populate the MASTS list
 
 CURVE_NAME = "Overpass1"
+
+MATERIAL_NAME = "Wire"
 
 SPAN_RESOLUTION = 24
 CONNECTOR_STEP = 4
@@ -40,14 +41,14 @@ CONNECTOR_NUM_SIDES = 3
 WORLD_UP = Vector((0, 0, 1))
 
 PROFILE_TOP = [
-    (Vector((0.0000, -0.0100)), Vector((0, 1, 0))),
-    (Vector((0.0060, 0.0000)), Vector((0,-1, 0))),
-    (Vector((-0.0060, 0.0000)), Vector((0,-1, 0))),
+    (Vector((0.0000, -0.0100)), Vector((0.0, 0.9727))),
+    (Vector((0.0060, 0.0000)), Vector((0.0, 0.9492))),
+    (Vector((-0.0060, 0.0000)), Vector((0.0, 0.9609))),
 ]
 PROFILE_BOTTOM = [
-    (Vector((0.0000, 0.0101)), Vector((0, 1, 0))),
-    (Vector((0.0060, 0.0000)), Vector((0,-1, 0))),
-    (Vector((-0.0060, 0.0000)), Vector((0,-1, 0))),
+    (Vector((0.0000, 0.0101)), Vector((0.0, 0.9492))),
+    (Vector((0.0060, 0.0000)), Vector((0.0, 0.9727))),
+    (Vector((-0.0060, 0.0000)), Vector((0.0, 0.9609))),
 ]
 
 MAST_TYPES = {
@@ -96,6 +97,7 @@ def build_masts(curve_points):
 def build_top_wire(top_mast_points, bottom_mast_points):
     top_wire_points = []
     mesh_vertices = []
+    mesh_uvs = []
     mesh_faces = []
     profile_point_count = len(PROFILE_TOP)
     for segment_index in range(len(top_mast_points) - 1):
@@ -139,12 +141,13 @@ def build_top_wire(top_mast_points, bottom_mast_points):
                 right_vector.normalize()
             upward_vector = right_vector.cross(segment_direction).normalized()
             base_vertex_index = len(mesh_vertices)
-            for profile_offset, _ in PROFILE_TOP:
+            for profile_offset, texcoord in PROFILE_TOP:
                 mesh_vertices.append(
                     wire_point +
                     right_vector * profile_offset.x +
                     upward_vector * profile_offset.y
                 )
+                mesh_uvs.append(texcoord)
             if base_vertex_index >= profile_point_count:
                 previous_base_vertex_index = base_vertex_index - profile_point_count
                 mesh_faces.append((
@@ -168,14 +171,27 @@ def build_top_wire(top_mast_points, bottom_mast_points):
     mesh = bpy.data.meshes.new("TopWire")
     obj = bpy.data.objects.new("TopWire", mesh)
     bpy.context.collection.objects.link(obj)
+    material = bpy.data.materials.get(MATERIAL_NAME)
+    if material is None:
+        material = bpy.data.materials.new(MATERIAL_NAME)
+    if material.name not in obj.data.materials:
+        obj.data.materials.append(material)
+    material_index = obj.data.materials.find(material.name)
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
+    mesh.polygons.foreach_set("material_index", [material_index] * len(mesh.polygons))
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    for poly in mesh.polygons:
+        for loop_index in poly.loop_indices:
+            vertex_index = mesh.loops[loop_index].vertex_index
+            uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
     return top_wire_points
 
 
 def build_bottom_wire(top_mast_points, bottom_mast_points):
     bottom_wire_points = []
     mesh_vertices = []
+    mesh_uvs = []
     mesh_faces = []
     profile_point_count = len(PROFILE_BOTTOM)
     for mast_index, mast_position in enumerate(bottom_mast_points):
@@ -202,12 +218,13 @@ def build_bottom_wire(top_mast_points, bottom_mast_points):
             right_vector.normalize()
         upward_vector = right_vector.cross(segment_direction).normalized()
         base_vertex_index = len(mesh_vertices)
-        for profile_offset, _ in PROFILE_BOTTOM:
+        for profile_offset, texcoord in PROFILE_BOTTOM:
             mesh_vertices.append(
                 mast_position +
                 right_vector * profile_offset.x +
                 upward_vector * profile_offset.y
             )
+            mesh_uvs.append(texcoord)
         if base_vertex_index >= profile_point_count:
             previous_base_vertex_index = base_vertex_index - profile_point_count
             mesh_faces.append((
@@ -231,13 +248,26 @@ def build_bottom_wire(top_mast_points, bottom_mast_points):
     mesh = bpy.data.meshes.new("BottomWire")
     obj = bpy.data.objects.new("BottomWire", mesh)
     bpy.context.collection.objects.link(obj)
+    material = bpy.data.materials.get(MATERIAL_NAME)
+    if material is None:
+        material = bpy.data.materials.new(MATERIAL_NAME)
+    if material.name not in obj.data.materials:
+        obj.data.materials.append(material)
+    material_index = obj.data.materials.find(material.name)
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
+    mesh.polygons.foreach_set("material_index", [material_index] * len(mesh.polygons))
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    for poly in mesh.polygons:
+        for loop_index in poly.loop_indices:
+            vertex_index = mesh.loops[loop_index].vertex_index
+            uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
     return bottom_wire_points
 
 
 def build_connectors(top_wire_points, bottom_wire_points):
     mesh_vertices = []
+    mesh_uvs = []
     mesh_faces = []
     for mast_index in range(0, len(top_wire_points), CONNECTOR_STEP):
         top_point = top_wire_points[mast_index]
@@ -280,6 +310,12 @@ def build_connectors(top_wire_points, bottom_wire_points):
                     connector_right_vector * cos(angle) * CONNECTOR_RADIUS +
                     connector_up_vector * sin(angle) * CONNECTOR_RADIUS
                 )
+                if side_index == 0:
+                    mesh_uvs.append(Vector((0.0, 0.9727)))
+                elif side_index == CONNECTOR_NUM_SIDES - 1:
+                    mesh_uvs.append(Vector((0.0, 0.9492)))
+                else:
+                    mesh_uvs.append(Vector((0.0, 0.9609)))
         for side_index in range(CONNECTOR_NUM_SIDES):
             next_side_index = (side_index + 1) % CONNECTOR_NUM_SIDES
             mesh_faces.append((
@@ -299,6 +335,7 @@ def build_connectors(top_wire_points, bottom_wire_points):
                     connector_right_vector * cos(angle) * CONNECTOR_COLLAR_RADIUS + 
                     connector_up_vector * sin(angle) * CONNECTOR_COLLAR_RADIUS
                 )
+                mesh_uvs.append(Vector((0.0, 1.0)))
         for side_index in range(CONNECTOR_NUM_SIDES):
             next_side_index = (side_index + 1) % CONNECTOR_NUM_SIDES
             mesh_faces.append((
@@ -318,6 +355,7 @@ def build_connectors(top_wire_points, bottom_wire_points):
                     connector_right_vector * cos(angle) * CONNECTOR_COLLAR_RADIUS + 
                     connector_up_vector * sin(angle) * CONNECTOR_COLLAR_RADIUS
                 )
+                mesh_uvs.append(Vector((0.0, 1.0)))
         for side_index in range(CONNECTOR_NUM_SIDES):
             next_side_index = (side_index + 1) % CONNECTOR_NUM_SIDES
             mesh_faces.append((
@@ -329,8 +367,20 @@ def build_connectors(top_wire_points, bottom_wire_points):
     mesh = bpy.data.meshes.new("Connectors")
     obj = bpy.data.objects.new("Connectors", mesh)
     bpy.context.collection.objects.link(obj)
+    material = bpy.data.materials.get(MATERIAL_NAME)
+    if material is None:
+        material = bpy.data.materials.new(MATERIAL_NAME)
+    if material.name not in obj.data.materials:
+        obj.data.materials.append(material)
+    material_index = obj.data.materials.find(material.name)
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
+    mesh.polygons.foreach_set("material_index", [material_index] * len(mesh.polygons))
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    for poly in mesh.polygons:
+        for loop_index in poly.loop_indices:
+            vertex_index = mesh.loops[loop_index].vertex_index
+            uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
 
 
 def make_wire():
