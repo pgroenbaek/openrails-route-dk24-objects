@@ -19,6 +19,10 @@ import bpy
 from math import sin, cos, pi
 from mathutils import Vector
 
+# TODO UV mapping
+# TODO Configure offsets in MAST_TYPES dict
+# TODO Load mast positions from world files based on UiD's and tile X/Y
+# TODO Project mast positions onto the curve to populate the MASTS list
 
 CURVE_NAME = "Overpass1"
 
@@ -41,8 +45,8 @@ PROFILE_TOP = [
     (Vector((-0.0060, 0.0000)), Vector((0,-1, 0))),
 ]
 PROFILE_BOTTOM = [
-    (Vector(( 0.0000, 0.0101)), Vector((0, 1, 0))),
-    (Vector(( 0.0060, 0.0000)), Vector((0,-1, 0))),
+    (Vector((0.0000, 0.0101)), Vector((0, 1, 0))),
+    (Vector((0.0060, 0.0000)), Vector((0,-1, 0))),
     (Vector((-0.0060, 0.0000)), Vector((0,-1, 0))),
 ]
 
