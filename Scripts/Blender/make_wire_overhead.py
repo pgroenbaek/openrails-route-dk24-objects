@@ -28,12 +28,11 @@ CURVE_NAME = "Overpass1"
 
 MATERIAL_NAME = "Wire"
 
-SPAN_RESOLUTION = 24
-CONNECTOR_STEP = 4
-
+SPAN_RESOLUTION = 6
 ARCH_CLEARANCE = 0.4
 ARCH_HEIGHT = 0.2
 
+CONNECTOR_DISTANCE_METERS = 10.0
 CONNECTOR_RADIUS = 0.005
 CONNECTOR_COLLAR_RADIUS = CONNECTOR_RADIUS * 1.33
 CONNECTOR_COLLAR_LENGTH = 0.03
@@ -75,7 +74,7 @@ def sample_curve(curve_object):
         curve_object (bpy.types.Object): The Blender curve object to sample.
 
     Returns:
-        list[Vector]: A list of 3D points (Vector) representing the sampled curve.
+        List[Vector]: A list of 3D points (Vector) representing the sampled curve.
     """
     dependency_graph = bpy.context.evaluated_depsgraph_get()
     evaluated_curve_object = curve_object.evaluated_get(dependency_graph)
@@ -90,7 +89,7 @@ def eval_curve(curve_points, interpolation_factor):
     Evaluates a point on a polyline curve using linear interpolation.
 
     Args:
-        curve_points (list[Vector]): List of points defining the polyline.
+        curve_points (List[Vector]): List of points defining the polyline.
         interpolation_factor (float): Factor between 0.0 and 1.0 for interpolation.
 
     Returns:
@@ -103,15 +102,66 @@ def eval_curve(curve_points, interpolation_factor):
     return curve_points[lower_index].lerp(curve_points[upper_index], floating_index - lower_index)
 
 
+def get_polyline_length(polyline_points):
+    """
+    Calculates the total length of a polyline defined by a list of points.
+
+    Args:
+        polyline_points (List[Vector]): List of points defining the polyline.
+
+    Returns:
+        float: The total length of the polyline. Returns 0.0 if less than 2 points.
+    """
+    total_length = 0.0
+    for i in range(len(polyline_points) - 1):
+        total_length += (polyline_points[i + 1] - polyline_points[i]).length
+    return total_length
+
+
+def get_point_on_polyline_by_distance(polyline_points, target_distance):
+    """
+    Evaluates a point on a polyline at a specified distance from its start.
+
+    Args:
+        polyline_points (List[Vector]): List of points defining the polyline.
+        target_distance (float): The distance from the start of the polyline
+                                 at which to find the point.
+
+    Returns:
+        Vector: The 3D point on the polyline at the target_distance.
+                Returns the last point if target_distance exceeds total length.
+                Returns the first point if target_distance is 0 or less.
+                Returns None if polyline_points is empty.
+    """
+    if not polyline_points:
+        return None
+    if target_distance <= 0:
+        return polyline_points[0].copy()
+    current_length = 0.0
+    for i in range(len(polyline_points) - 1):
+        p1 = polyline_points[i]
+        p2 = polyline_points[i+1]
+        segment_vector = p2 - p1
+        segment_length = segment_vector.length
+        if current_length + segment_length >= target_distance:
+            remaining_distance_in_segment = target_distance - current_length
+            if segment_length == 0:
+                return p1.copy()
+            interpolation_factor = remaining_distance_in_segment / segment_length
+            return p1.lerp(p2, interpolation_factor)
+        current_length += segment_length
+    return polyline_points[-1].copy()
+
+
 def calculate_mast_positions(curve_points):
     """
     Calculates the 3D positions for top and bottom mast attachment points.
 
     Args:
-        curve_points (list[Vector]): Sampled points from the main curve path.
+        curve_points (List[Vector]): Sampled points from the main curve path.
 
     Returns:
-        tuple[list[Vector], list[Vector]]: A tuple containing two lists:
+        Tuple[List[Vector], List[Vector]]: A tuple containing two lists:
             - top_mast_points: List of 3D points for the top wire attachment.
             - bottom_mast_points: List of 3D points for the bottom wire attachment.
     """
@@ -130,11 +180,11 @@ def build_top_wire(top_mast_points, bottom_mast_points):
     Generates the mesh for the top overhead wire, including sag and UV mapping.
 
     Args:
-        top_mast_points (list[Vector]): List of 3D points for the top wire attachment.
-        bottom_mast_points (list[Vector]): List of 3D points for the bottom wire reference.
+        top_mast_points (List[Vector]): List of 3D points for the top wire attachment.
+        bottom_mast_points (List[Vector]): List of 3D points for the bottom wire reference.
 
     Returns:
-        list[Vector]: A list of 3D points representing the generated top wire path.
+        List[Vector]: A list of 3D points representing the generated top wire path.
     """
     top_wire_points = []
     mesh_vertices = []
@@ -239,11 +289,11 @@ def build_bottom_wire(top_mast_points, bottom_mast_points):
     Generates the mesh for the bottom overhead wire.
 
     Args:
-        top_mast_points (list[Vector]): List of 3D points for the top wire reference.
-        bottom_mast_points (list[Vector]): List of 3D points for the bottom wire attachment.
+        top_mast_points (List[Vector]): List of 3D points for the top wire reference.
+        bottom_mast_points (List[Vector]): List of 3D points for the bottom wire attachment.
 
     Returns:
-        list[Vector]: A list of 3D points representing the generated bottom wire path.
+        List[Vector]: A list of 3D points representing the generated bottom wire path.
     """
     bottom_wire_points = []
     mesh_vertices = []
@@ -328,18 +378,24 @@ def build_bottom_wire(top_mast_points, bottom_mast_points):
 
 def build_connectors(top_wire_points, bottom_wire_points):
     """
-    Generates the mesh for the connectors between the top and bottom wires.
+    Generates the mesh for the connectors between the top and bottom wires,
+    placing them at regular distance intervals along the top wire path.
 
     Args:
-        top_wire_points (list[Vector]): List of 3D points defining the top wire path.
-        bottom_wire_points (list[Vector]): List of 3D points defining the bottom wire path.
+        top_wire_points (List[Vector]): List of 3D points defining the top wire path.
+        bottom_wire_points (List[Vector]): List of 3D points defining the bottom wire path.
     """
     mesh_vertices = []
     mesh_uvs = []
     mesh_faces = []
     shaft_face_indices = []
-    for mast_index in range(0, len(top_wire_points), CONNECTOR_STEP):
-        top_point = top_wire_points[mast_index]
+    total_top_wire_length = get_polyline_length(top_wire_points)
+    current_distance = 0.0
+    while current_distance <= total_top_wire_length + 1e-6:
+        top_point = get_point_on_polyline_by_distance(top_wire_points, current_distance)
+        current_distance += CONNECTOR_DISTANCE_METERS
+        if top_point is None: 
+            continue
         best_projection_point = None
         best_projection_distance = 1e18
         for segment_index in range(len(bottom_wire_points) - 1):
@@ -447,7 +503,8 @@ def build_connectors(top_wire_points, bottom_wire_points):
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
     for face_index in shaft_face_indices:
-        mesh.polygons[face_index].use_smooth = True
+        if face_index < len(mesh.polygons):
+            mesh.polygons[face_index].use_smooth = True
     mesh.polygons.foreach_set("material_index", [material_index] * len(mesh.polygons))
     uv_layer = mesh.uv_layers.new(name="UVMap")
     for poly in mesh.polygons:
