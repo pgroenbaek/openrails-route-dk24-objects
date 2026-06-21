@@ -40,12 +40,12 @@ CONNECTOR_NUM_SIDES = 3
 
 WORLD_UP = Vector((0, 0, 1))
 
-PROFILE_TOP = [
+PROFILE_TOP_WIRE = [
     (Vector((0.0000, -0.0100)), Vector((0.0, 0.9727))),
     (Vector((0.0060, 0.0000)), Vector((0.0, 0.9492))),
     (Vector((-0.0060, 0.0000)), Vector((0.0, 0.9609))),
 ]
-PROFILE_BOTTOM = [
+PROFILE_BOTTOM_WIRE = [
     (Vector((0.0000, 0.0101)), Vector((0.0, 0.9492))),
     (Vector((0.0060, 0.0000)), Vector((0.0, 0.9727))),
     (Vector((-0.0060, 0.0000)), Vector((0.0, 0.9609))),
@@ -190,7 +190,7 @@ def build_top_wire(top_mast_points, bottom_mast_points):
     mesh_vertices = []
     mesh_uvs = []
     mesh_faces = []
-    profile_point_count = len(PROFILE_TOP)
+    profile_point_count = len(PROFILE_TOP_WIRE)
     for segment_index in range(len(top_mast_points) - 1):
         start_top_point, end_top_point = top_mast_points[segment_index], top_mast_points[segment_index + 1]
         start_bottom_point, end_bottom_point = bottom_mast_points[segment_index], bottom_mast_points[segment_index + 1]
@@ -232,7 +232,7 @@ def build_top_wire(top_mast_points, bottom_mast_points):
                 right_vector.normalize()
             upward_vector = right_vector.cross(segment_direction).normalized()
             base_vertex_index = len(mesh_vertices)
-            for profile_offset, texcoord in PROFILE_TOP:
+            for profile_offset, texcoord in PROFILE_TOP_WIRE:
                 mesh_vertices.append(
                     wire_point +
                     right_vector * profile_offset.x +
@@ -299,7 +299,7 @@ def build_bottom_wire(top_mast_points, bottom_mast_points):
     mesh_vertices = []
     mesh_uvs = []
     mesh_faces = []
-    profile_point_count = len(PROFILE_BOTTOM)
+    profile_point_count = len(PROFILE_BOTTOM_WIRE)
     for mast_index, mast_position in enumerate(bottom_mast_points):
         bottom_wire_points.append(mast_position)
         if len(bottom_mast_points) == 1:
@@ -324,7 +324,7 @@ def build_bottom_wire(top_mast_points, bottom_mast_points):
             right_vector.normalize()
         upward_vector = right_vector.cross(segment_direction).normalized()
         base_vertex_index = len(mesh_vertices)
-        for profile_offset, texcoord in PROFILE_BOTTOM:
+        for profile_offset, texcoord in PROFILE_BOTTOM_WIRE:
             mesh_vertices.append(
                 mast_position +
                 right_vector * profile_offset.x +
@@ -513,7 +513,7 @@ def build_connectors(top_wire_points, bottom_wire_points):
             uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
 
 
-def make_wire():
+def make_overhead_wire():
     """
     Main execution function that generates overhead wire.
     """
@@ -525,7 +525,7 @@ def make_wire():
     build_connectors(top_wire_points, bottom_wire_points)
 
 
-make_wire()
+make_overhead_wire()
 
 
 
