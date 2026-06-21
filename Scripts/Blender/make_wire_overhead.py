@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import bpy
+import math
 from math import sin, cos, pi
 from mathutils import Vector
 
@@ -34,7 +35,7 @@ ARCH_CLEARANCE = 0.4
 ARCH_HEIGHT = 0.2
 
 CONNECTOR_RADIUS = 0.005
-CONNECTOR_COLLAR_RADIUS = CONNECTOR_RADIUS * 1.25
+CONNECTOR_COLLAR_RADIUS = CONNECTOR_RADIUS * 1.33
 CONNECTOR_COLLAR_LENGTH = 0.03
 CONNECTOR_NUM_SIDES = 3
 
@@ -52,9 +53,9 @@ PROFILE_BOTTOM = [
 ]
 
 MAST_TYPES = {
-    "A": {"top": Vector((0.25, 7.1999)), "bottom": Vector((-0.25, 6.1999))},
-    "B": {"top": Vector((-0.35, 7.1999)), "bottom": Vector((0.20, 6.1999))},
-    "C": {"top": Vector((0.15, 7.1999)), "bottom": Vector((-0.30, 6.1999))},
+    "A": {"top_offset": Vector((0.25, 7.1999)), "bottom_offset": Vector((-0.25, 6.1999))},
+    "B": {"top_offset": Vector((-0.35, 7.1999)), "bottom_offset": Vector((0.20, 6.1999))},
+    "C": {"top_offset": Vector((0.15, 7.1999)), "bottom_offset": Vector((-0.30, 6.1999))},
 }
 
 MASTS = [
@@ -67,6 +68,15 @@ MASTS = [
 
 
 def sample_curve(curve_object):
+    """
+    Samples points from a Blender curve object after evaluation.
+
+    Args:
+        curve_object (bpy.types.Object): The Blender curve object to sample.
+
+    Returns:
+        list[Vector]: A list of 3D points (Vector) representing the sampled curve.
+    """
     dependency_graph = bpy.context.evaluated_depsgraph_get()
     evaluated_curve_object = curve_object.evaluated_get(dependency_graph)
     evaluated_mesh = evaluated_curve_object.to_mesh()
@@ -76,6 +86,16 @@ def sample_curve(curve_object):
 
 
 def eval_curve(curve_points, interpolation_factor):
+    """
+    Evaluates a point on a polyline curve using linear interpolation.
+
+    Args:
+        curve_points (list[Vector]): List of points defining the polyline.
+        interpolation_factor (float): Factor between 0.0 and 1.0 for interpolation.
+
+    Returns:
+        Vector: The interpolated 3D point on the curve.
+    """
     point_count = len(curve_points)
     floating_index = interpolation_factor * (point_count - 1)
     lower_index = int(floating_index)
@@ -83,18 +103,39 @@ def eval_curve(curve_points, interpolation_factor):
     return curve_points[lower_index].lerp(curve_points[upper_index], floating_index - lower_index)
 
 
-def build_masts(curve_points):
+def calculate_mast_positions(curve_points):
+    """
+    Calculates the 3D positions for top and bottom mast attachment points.
+
+    Args:
+        curve_points (list[Vector]): Sampled points from the main curve path.
+
+    Returns:
+        tuple[list[Vector], list[Vector]]: A tuple containing two lists:
+            - top_mast_points: List of 3D points for the top wire attachment.
+            - bottom_mast_points: List of 3D points for the bottom wire attachment.
+    """
     top_mast_points = []
     bottom_mast_points = []
     for normalized_t, mast_type_key in MASTS:
         mast_position = eval_curve(curve_points, normalized_t)
         mast_definition = MAST_TYPES[mast_type_key]
-        top_mast_points.append(mast_position + Vector((mast_definition["top"].x, 0, mast_definition["top"].y)))
-        bottom_mast_points.append(mast_position + Vector((mast_definition["bottom"].x, 0, mast_definition["bottom"].y)))
+        top_mast_points.append(mast_position + Vector((mast_definition["top_offset"].x, 0, mast_definition["top_offset"].y)))
+        bottom_mast_points.append(mast_position + Vector((mast_definition["bottom_offset"].x, 0, mast_definition["bottom_offset"].y)))
     return top_mast_points, bottom_mast_points
 
 
 def build_top_wire(top_mast_points, bottom_mast_points):
+    """
+    Generates the mesh for the top overhead wire, including sag and UV mapping.
+
+    Args:
+        top_mast_points (list[Vector]): List of 3D points for the top wire attachment.
+        bottom_mast_points (list[Vector]): List of 3D points for the bottom wire reference.
+
+    Returns:
+        list[Vector]: A list of 3D points representing the generated top wire path.
+    """
     top_wire_points = []
     mesh_vertices = []
     mesh_uvs = []
@@ -179,6 +220,11 @@ def build_top_wire(top_mast_points, bottom_mast_points):
     material_index = obj.data.materials.find(material.name)
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(180))
     mesh.polygons.foreach_set("material_index", [material_index] * len(mesh.polygons))
     uv_layer = mesh.uv_layers.new(name="UVMap")
     for poly in mesh.polygons:
@@ -189,6 +235,16 @@ def build_top_wire(top_mast_points, bottom_mast_points):
 
 
 def build_bottom_wire(top_mast_points, bottom_mast_points):
+    """
+    Generates the mesh for the bottom overhead wire.
+
+    Args:
+        top_mast_points (list[Vector]): List of 3D points for the top wire reference.
+        bottom_mast_points (list[Vector]): List of 3D points for the bottom wire attachment.
+
+    Returns:
+        list[Vector]: A list of 3D points representing the generated bottom wire path.
+    """
     bottom_wire_points = []
     mesh_vertices = []
     mesh_uvs = []
@@ -256,6 +312,11 @@ def build_bottom_wire(top_mast_points, bottom_mast_points):
     material_index = obj.data.materials.find(material.name)
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(180))
     mesh.polygons.foreach_set("material_index", [material_index] * len(mesh.polygons))
     uv_layer = mesh.uv_layers.new(name="UVMap")
     for poly in mesh.polygons:
@@ -266,9 +327,17 @@ def build_bottom_wire(top_mast_points, bottom_mast_points):
 
 
 def build_connectors(top_wire_points, bottom_wire_points):
+    """
+    Generates the mesh for the connectors between the top and bottom wires.
+
+    Args:
+        top_wire_points (list[Vector]): List of 3D points defining the top wire path.
+        bottom_wire_points (list[Vector]): List of 3D points defining the bottom wire path.
+    """
     mesh_vertices = []
     mesh_uvs = []
     mesh_faces = []
+    shaft_face_indices = []
     for mast_index in range(0, len(top_wire_points), CONNECTOR_STEP):
         top_point = top_wire_points[mast_index]
         best_projection_point = None
@@ -318,12 +387,14 @@ def build_connectors(top_wire_points, bottom_wire_points):
                     mesh_uvs.append(Vector((0.0, 0.9609)))
         for side_index in range(CONNECTOR_NUM_SIDES):
             next_side_index = (side_index + 1) % CONNECTOR_NUM_SIDES
+            face_index = len(mesh_faces)
             mesh_faces.append((
                 base_vertex_index + side_index,
                 base_vertex_index + next_side_index,
                 base_vertex_index + CONNECTOR_NUM_SIDES + next_side_index,
                 base_vertex_index + CONNECTOR_NUM_SIDES + side_index
             ))
+            shaft_face_indices.append(face_index)
         collar_start_point = top_point
         collar_end_point = top_point + connector_direction * CONNECTOR_COLLAR_LENGTH
         base_vertex_index = len(mesh_vertices)
@@ -375,6 +446,8 @@ def build_connectors(top_wire_points, bottom_wire_points):
     material_index = obj.data.materials.find(material.name)
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
+    for face_index in shaft_face_indices:
+        mesh.polygons[face_index].use_smooth = True
     mesh.polygons.foreach_set("material_index", [material_index] * len(mesh.polygons))
     uv_layer = mesh.uv_layers.new(name="UVMap")
     for poly in mesh.polygons:
@@ -384,9 +457,12 @@ def build_connectors(top_wire_points, bottom_wire_points):
 
 
 def make_wire():
+    """
+    Main execution function that generates overhead wire.
+    """
     curve_object = bpy.data.objects[CURVE_NAME]
     curve_points = sample_curve(curve_object)
-    top_mast_points, bottom_mast_points = build_masts(curve_points)
+    top_mast_points, bottom_mast_points = calculate_mast_positions(curve_points)
     top_wire_points = build_top_wire(top_mast_points, bottom_mast_points)
     bottom_wire_points = build_bottom_wire(top_mast_points, bottom_mast_points)
     build_connectors(top_wire_points, bottom_wire_points)
