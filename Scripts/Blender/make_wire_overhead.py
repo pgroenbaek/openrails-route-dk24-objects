@@ -20,7 +20,6 @@ import math
 from math import sin, cos, pi
 from mathutils import Vector
 
-# TODO Configure offsets in MAST_TYPES dict
 # TODO Load mast positions from world files based on UiD's and tile X/Y
 # TODO Project mast positions onto the curve to populate the MASTS list
 
@@ -52,10 +51,32 @@ PROFILE_BOTTOM_WIRE = [
 ]
 
 MAST_TYPES = {
-    "A": {"top_offset": Vector((0.25, 7.1999)), "bottom_offset": Vector((-0.25, 6.1999))},
-    "B": {"top_offset": Vector((-0.35, 7.1999)), "bottom_offset": Vector((0.20, 6.1999))},
-    "C": {"top_offset": Vector((0.15, 7.1999)), "bottom_offset": Vector((-0.30, 6.1999))},
+    "PGA_DKGantry_N1t6m_KL": [
+        {"top_offset": Vector((0.0, 7.1999)), "bottom_offset": Vector((0.0, 6.1999))},
+    ],
+    "PGA_DKGantry_N1t6m_KR": [
+        {"top_offset": Vector((0.0, 7.1999)), "bottom_offset": Vector((0.0, 6.1999))},
+    ],
+    "PGA_DKGantry_N1t6m_LL": [
+        {"top_offset": Vector((0.0, 7.1999)), "bottom_offset": Vector((0.0, 6.1999))},
+    ],
+    "PGA_DKGantry_N1t6m_LR": [
+        {"top_offset": Vector((0.0, 7.1999)), "bottom_offset": Vector((0.0, 6.1999))},
+    ],
+    "PGA_DKGantry_N2t6m_K": [
+        {"top_offset": Vector((-2.5, 7.1999)), "bottom_offset": Vector((-2.5, 6.1999))},
+        {"top_offset": Vector((2.5, 7.1999)), "bottom_offset": Vector((2.5, 6.1999))},
+    ],
+    "PGA_DKGantry_N2t6m_L": [
+        {"top_offset": Vector((-2.5, 7.1999)), "bottom_offset": Vector((-2.5, 6.1999))},
+        {"top_offset": Vector((2.5, 7.1999)), "bottom_offset": Vector((2.5, 6.1999))},
+    ],
 }
+
+MASTS_NEW = [
+    # blender_position, blender_rotation, mast_type, track_nr (this is the index within MAST_TYPES[mast_type][track_nr])
+    [Vector(0.0, 0.0, 0.0), 0.0, "PGA_DKGantry_N1t6m_KL", 0],
+]
 
 MASTS = [
     (0.05, "A"),
@@ -64,7 +85,6 @@ MASTS = [
     (0.63, "C"),
     (0.91, "B"),
 ]
-
 
 def sample_curve(curve_object):
     """
@@ -100,6 +120,27 @@ def eval_curve(curve_points, interpolation_factor):
     lower_index = int(floating_index)
     upper_index = min(lower_index + 1, point_count - 1)
     return curve_points[lower_index].lerp(curve_points[upper_index], floating_index - lower_index)
+
+
+def calculate_blender_coords(position, tile_coords, ref_position, ref_tile_coords, tile_size=2048):
+    """
+    Calculates Blender coordinates based on position, tile coordinates, and a reference point.
+
+    Args:
+        position (Vector): The current position in game world coordinates (x, y, z).
+        tile_coords (Vector): The tile coordinates (tile_x, tile_y) for the current position.
+        ref_position (Vector): The reference position in game world coordinates (x, y, z) for the origin.
+        ref_tile_coords (Vector): The tile coordinates (tile_x, tile_y) for the reference origin.
+        tile_size (int, optional): The size of a single tile in game world units. Defaults to 2048.
+
+    Returns:
+        Vector: The corresponding 3D point in Blender's coordinate system.
+    """
+    blender_x = (tile_coords.x - ref_tile_coords.x) * tile_size + (position.x - ref_position.x)
+    blender_y = position.y - ref_position.y
+    blender_z = (tile_coords.y - ref_tile_coords.y) * tile_size + (position.z - ref_position.z)
+    
+    return Vector(blender_x, blender_y, blender_z)
 
 
 def get_polyline_length(polyline_points):

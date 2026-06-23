@@ -38,9 +38,12 @@ PROFILE_RETURN_WIRE = [
 ]
 
 MAST_TYPES = {
-    "A": {"return_offset": Vector((0.0, 7.0))},
-    "B": {"return_offset": Vector((0.1, 6.9))},
-    "C": {"return_offset": Vector((-0.1, 7.2))},
+    "PGA_DKGantry_N1t6m_KL": {"return_offset": Vector((-2.799, 6.98))},
+    "PGA_DKGantry_N1t6m_KR": {"return_offset": Vector((2.799, 6.98))},
+    "PGA_DKGantry_N1t6m_LL": {"return_offset": Vector((-2.799, 6.98))},
+    "PGA_DKGantry_N1t6m_LR": {"return_offset": Vector((2.799, 6.98))},
+    "PGA_DKGantry_N2t6m_K": {"return_offset": Vector((-5.299, 6.98))},
+    "PGA_DKGantry_N2t6m_L": {"return_offset": Vector((5.299, 6.98))},
 }
 
 MASTS = [
@@ -86,6 +89,27 @@ def eval_curve(curve_points, interpolation_factor):
     lower_index = int(floating_index)
     upper_index = min(lower_index + 1, point_count - 1)
     return curve_points[lower_index].lerp(curve_points[upper_index], floating_index - lower_index)
+
+
+def calculate_blender_coords(position, tile_coords, ref_position, ref_tile_coords, tile_size=2048):
+    """
+    Calculates Blender coordinates based on position, tile coordinates, and a reference point.
+
+    Args:
+        position (Vector): The current position in game world coordinates (x, y, z).
+        tile_coords (Vector): The tile coordinates (tile_x, tile_y) for the current position.
+        ref_position (Vector): The reference position in game world coordinates (x, y, z) for the origin.
+        ref_tile_coords (Vector): The tile coordinates (tile_x, tile_y) for the reference origin.
+        tile_size (int, optional): The size of a single tile in game world units. Defaults to 2048.
+
+    Returns:
+        Vector: The corresponding 3D point in Blender's coordinate system.
+    """
+    blender_x = (tile_coords.x - ref_tile_coords.x) * tile_size + (position.x - ref_position.x)
+    blender_y = position.y - ref_position.y
+    blender_z = (tile_coords.y - ref_tile_coords.y) * tile_size + (position.z - ref_position.z)
+    
+    return Vector(blender_x, blender_y, blender_z)
 
 
 def build_return_wire(curve_points):
