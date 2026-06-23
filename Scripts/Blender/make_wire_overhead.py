@@ -17,13 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
 import math
+from pathlib import Path
 from math import sin, cos, pi
-from mathutils import Vector
-
-# TODO Load mast positions from world files based on UiD's and tile X/Y
-# TODO Project mast positions onto the curve to populate the MASTS list
-
-CURVE_NAME = "Overpass1"
+from mathutils import Vector, Quaternion, Matrix
 
 MATERIAL_NAME = "Wire"
 
@@ -38,6 +34,15 @@ CONNECTOR_COLLAR_LENGTH = 0.03
 CONNECTOR_NUM_SIDES = 3
 
 WORLD_UP = Vector((0, 0, 1))
+WORLD_FOLDER = "/media/peter/T7 Shield/Repos/personal/openrails-route-dk24/ROUTES/OR_DK24/WORLD"
+
+TILE_SIZE = 2048
+
+REFERENCE_POSITION_X = -874.908
+REFERENCE_POSITION_Y = 14.4113
+REFERENCE_POSITION_Z = -828.282
+REFERENCE_TILE_X = -5656
+REFERENCE_TILE_Y = 15119
 
 PROFILE_TOP_WIRE = [
     (Vector((0.0000, -0.0100)), Vector((0.0, 0.9727))),
@@ -51,96 +56,229 @@ PROFILE_BOTTOM_WIRE = [
 ]
 
 MAST_TYPES = {
-    "PGA_DKGantry_N1t6m_KL": [
+    "PGA_DKGantry_N1t6m_KL.s": [
         {"top_offset": Vector((0.0, 7.1999)), "bottom_offset": Vector((0.0, 6.1999))},
     ],
-    "PGA_DKGantry_N1t6m_KR": [
+    "PGA_DKGantry_N1t6m_KR.s": [
         {"top_offset": Vector((0.0, 7.1999)), "bottom_offset": Vector((0.0, 6.1999))},
     ],
-    "PGA_DKGantry_N1t6m_LL": [
+    "PGA_DKGantry_N1t6m_LL.s": [
         {"top_offset": Vector((0.0, 7.1999)), "bottom_offset": Vector((0.0, 6.1999))},
     ],
-    "PGA_DKGantry_N1t6m_LR": [
+    "PGA_DKGantry_N1t6m_LR.s": [
         {"top_offset": Vector((0.0, 7.1999)), "bottom_offset": Vector((0.0, 6.1999))},
     ],
-    "PGA_DKGantry_N2t6m_K": [
+    "PGA_DKGantry_N2t6m_K.s": [
         {"top_offset": Vector((-2.5, 7.1999)), "bottom_offset": Vector((-2.5, 6.1999))},
         {"top_offset": Vector((2.5, 7.1999)), "bottom_offset": Vector((2.5, 6.1999))},
     ],
-    "PGA_DKGantry_N2t6m_L": [
+    "PGA_DKGantry_N2t6m_L.s": [
         {"top_offset": Vector((-2.5, 7.1999)), "bottom_offset": Vector((-2.5, 6.1999))},
         {"top_offset": Vector((2.5, 7.1999)), "bottom_offset": Vector((2.5, 6.1999))},
     ],
 }
 
-MASTS_NEW = [
-    # blender_position, blender_rotation, mast_type, track_nr (this is the index within MAST_TYPES[mast_type][track_nr])
-    [Vector(0.0, 0.0, 0.0), 0.0, "PGA_DKGantry_N1t6m_KL", 0],
-]
-
 MASTS = [
-    (0.05, "A"),
-    (0.22, "B"),
-    (0.41, "A"),
-    (0.63, "C"),
-    (0.91, "B"),
+    #UiD, TileX, TileY, offset_index (for the specific shape within MAST_TYPES)
+    [6955, -5656, 15119, 0],
+    [6956, -5656, 15119, 0],
+    [6958, -5656, 15119, 0],
+    [6959, -5656, 15119, 0],
+    [6960, -5656, 15119, 0],
+    [6961, -5656, 15119, 0],
+    [112, -5657, 15119, 0],
+    [113, -5657, 15119, 0],
+    [3231, -5657, 15118, 0],
+    [3232, -5657, 15118, 0],
+    [3241, -5657, 15118, 0],
+    [3245, -5657, 15118, 0],
+    [3243, -5657, 15118, 0],
+    [3233, -5657, 15118, 0],
+    [3234, -5657, 15118, 0],
+    [3253, -5657, 15118, 0],
+    [3254, -5657, 15118, 0],
+    ####
+    # [6955, -5656, 15119, 1],
+    # [6956, -5656, 15119, 1],
+    # [6958, -5656, 15119, 1],
+    # [6959, -5656, 15119, 1],
+    # [6960, -5656, 15119, 1],
+    # [6961, -5656, 15119, 1],
+    # [112, -5657, 15119, 1],
+    # [113, -5657, 15119, 1],
+    # [3231, -5657, 15118, 1],
+    # [3232, -5657, 15118, 1],
+    # [3240, -5657, 15118, 0],
+    # [3246, -5657, 15118, 0],
+    # [3248, -5657, 15118, 0],
+    # [3247, -5657, 15118, 0],
+    # [3233, -5657, 15118, 1],
+    # [3234, -5657, 15118, 1],
+    # [3253, -5657, 15118, 1],
+    # [3254, -5657, 15118, 1],
 ]
 
-def sample_curve(curve_object):
-    """
-    Samples points from a Blender curve object after evaluation.
-
-    Args:
-        curve_object (bpy.types.Object): The Blender curve object to sample.
-
-    Returns:
-        List[Vector]: A list of 3D points (Vector) representing the sampled curve.
-    """
-    dependency_graph = bpy.context.evaluated_depsgraph_get()
-    evaluated_curve_object = curve_object.evaluated_get(dependency_graph)
-    evaluated_mesh = evaluated_curve_object.to_mesh()
-    sampled_points = [vertex.co.copy() for vertex in evaluated_mesh.vertices]
-    evaluated_curve_object.to_mesh_clear()
-    return sampled_points
-
-
-def eval_curve(curve_points, interpolation_factor):
-    """
-    Evaluates a point on a polyline curve using linear interpolation.
-
-    Args:
-        curve_points (List[Vector]): List of points defining the polyline.
-        interpolation_factor (float): Factor between 0.0 and 1.0 for interpolation.
-
-    Returns:
-        Vector: The interpolated 3D point on the curve.
-    """
-    point_count = len(curve_points)
-    floating_index = interpolation_factor * (point_count - 1)
-    lower_index = int(floating_index)
-    upper_index = min(lower_index + 1, point_count - 1)
-    return curve_points[lower_index].lerp(curve_points[upper_index], floating_index - lower_index)
-
-
-def calculate_blender_coords(position, tile_coords, ref_position, ref_tile_coords, tile_size=2048):
+def calculate_blender_coordinates(position, tile_coords):
     """
     Calculates Blender coordinates based on position, tile coordinates, and a reference point.
 
     Args:
         position (Vector): The current position in game world coordinates (x, y, z).
         tile_coords (Vector): The tile coordinates (tile_x, tile_y) for the current position.
-        ref_position (Vector): The reference position in game world coordinates (x, y, z) for the origin.
-        ref_tile_coords (Vector): The tile coordinates (tile_x, tile_y) for the reference origin.
-        tile_size (int, optional): The size of a single tile in game world units. Defaults to 2048.
 
     Returns:
         Vector: The corresponding 3D point in Blender's coordinate system.
     """
-    blender_x = (tile_coords.x - ref_tile_coords.x) * tile_size + (position.x - ref_position.x)
-    blender_y = position.y - ref_position.y
-    blender_z = (tile_coords.y - ref_tile_coords.y) * tile_size + (position.z - ref_position.z)
-    
-    return Vector(blender_x, blender_y, blender_z)
+    blender_x = (tile_coords.x - REFERENCE_TILE_X) * TILE_SIZE + (position.x - REFERENCE_POSITION_X)
+    blender_y = (tile_coords.y - REFERENCE_TILE_Y) * TILE_SIZE + (position.z - REFERENCE_POSITION_Z)
+    blender_z = position.y - REFERENCE_POSITION_Y
+    return Vector((blender_x, blender_y, blender_z))
+
+
+def read_mast_data():
+    """
+    Builds a list of mast data by reading required world tiles.
+
+    Returns:
+        List: [
+            uid,
+            tilex,
+            tiley,
+            filename,
+            Vector(position),
+            Quaternion(qdirection),
+        ]
+    """
+    mast_data = []
+    tiles_to_uids = {}
+    track_nr_lookup = {}
+    A = Matrix((
+        (1, 0, 0, 0),
+        (0, 0, 1, 0),
+        (0, 1, 0, 0),
+        (0, 0, 0, 1),
+    ))
+    for mast_entry in MASTS:
+        uid = mast_entry[0]
+        tile_x = mast_entry[1]
+        tile_y = mast_entry[2]
+        track_nr = mast_entry[3]
+        key = (tile_x, tile_y, uid)
+        if key not in track_nr_lookup:
+            track_nr_lookup[key] = track_nr
+        key = (tile_x, tile_y)
+        if key not in tiles_to_uids:
+            tiles_to_uids[key] = set()
+        tiles_to_uids[key].add(uid)
+    tile_cache = {}
+    tile_data = {}
+    for tile_coords in tiles_to_uids:
+        tile_x = tile_coords[0]
+        tile_y = tile_coords[1]
+        filename = "w{:+07d}{:+07d}.w".format(tile_x, tile_y)
+        file_path = Path(WORLD_FOLDER) / filename
+        if not file_path.exists():
+            print(f"Warning: Missing world file {filename}")
+            continue
+        uid = None
+        file_name = None
+        position = None
+        qx = qy = qz = qw = None
+        in_static = False
+        lines = file_path.read_text(encoding="utf-16-le", errors="ignore").splitlines()
+        for line in lines:
+            line = line.strip()
+            if line.startswith("Static"):
+                uid = None
+                file_name = None
+                position = None
+                qx = qy = qz = qw = None
+                in_static = True
+                continue
+            if in_static:
+                if line.startswith("UiD"):
+                    uid = int(line.split("(")[1].split(")")[0])
+                elif line.startswith("FileName"):
+                    file_name = line.split("(")[1].split(")")[0].strip()
+                elif line.startswith("Position"):
+                    parts = line.replace("Position", "").replace("(", "").replace(")", "").split()
+                    if len(parts) >= 3:
+                        position = Vector((float(parts[0]), float(parts[1]), float(parts[2])))
+                elif line.startswith("QDirection"):
+                    parts = line.replace("QDirection", "").replace("(", "").replace(")", "").split()
+                    if len(parts) >= 4:
+                        qx = float(parts[0])
+                        qy = float(parts[1])
+                        qz = float(parts[2])
+                        qw = float(parts[3])
+                elif ")" in line:
+                    in_static = False
+                    if uid in tiles_to_uids[(tile_x, tile_y)] and uid is not None:
+                        M = Quaternion((qw, qx, qy, qz)).to_matrix().to_4x4()
+                        M2 = A @ M @ A.inverted()
+                        qdirection = M2.to_quaternion()
+                        tile_data[(tile_x, tile_y, uid)] = [
+                            uid,
+                            tile_x,
+                            tile_y,
+                            file_name,
+                            position,
+                            qdirection,
+                            track_nr_lookup[(tile_x, tile_y, uid)],
+                        ]
+    for mast_entry in MASTS:
+        tile_x = mast_entry[1]
+        tile_y = mast_entry[2]
+        uid = mast_entry[0]
+        key = (tile_x, tile_y, uid)
+        if key in tile_data:
+            mast_data.append(tile_data[key])
+    return mast_data
+
+
+def calculate_mast_wire_positions():
+    top_mast_points = []
+    bottom_mast_points = []
+    mast_data = read_mast_data()
+    for i, mast_entry in enumerate(mast_data):
+        mast_tile = Vector((mast_entry[1], mast_entry[2]))
+        mast_position = calculate_blender_coordinates(mast_entry[4], mast_tile)
+        mast_rotation = mast_entry[5]
+        mast_type_key = mast_entry[3]
+        track_nr = mast_entry[6]
+        if mast_type_key not in MAST_TYPES:
+            print(f"Warning: Invalid mast type '{mast_type_key}'. Skipping mast.")
+            continue
+        if track_nr >= len(MAST_TYPES[mast_type_key]):
+            print(f"Warning: Invalid track nr '{track_nr}' for type '{mast_type_key}'. Skipping mast.")
+            continue
+        mast_definition = MAST_TYPES[mast_type_key][track_nr]
+        mast_forward = mast_rotation @ Vector((1, 0, 0))
+        mast_right = mast_rotation @ Vector((0, 1, 0))
+        mast_up = mast_rotation @ Vector((0, 0, 1))
+        top_local = Vector((
+            mast_definition["top_offset"].x,
+            0.0,
+            mast_definition["top_offset"].y
+        ))
+        bottom_local = Vector((
+            mast_definition["bottom_offset"].x,
+            0.0,
+            mast_definition["bottom_offset"].y
+        ))
+        top_point = mast_position + (
+            mast_right * top_local.x +
+            mast_forward * top_local.y +
+            mast_up * top_local.z
+        )
+        bottom_point = mast_position + (
+            mast_right * bottom_local.x +
+            mast_forward * bottom_local.y +
+            mast_up * bottom_local.z
+        )
+        top_mast_points.append(top_point)
+        bottom_mast_points.append(bottom_point)
+    return top_mast_points, bottom_mast_points
 
 
 def get_polyline_length(polyline_points):
@@ -192,28 +330,6 @@ def get_point_on_polyline_by_distance(polyline_points, target_distance):
             return p1.lerp(p2, interpolation_factor)
         current_length += segment_length
     return polyline_points[-1].copy()
-
-
-def calculate_mast_positions(curve_points):
-    """
-    Calculates the 3D positions for top and bottom mast attachment points.
-
-    Args:
-        curve_points (List[Vector]): Sampled points from the main curve path.
-
-    Returns:
-        Tuple[List[Vector], List[Vector]]: A tuple containing two lists:
-            - top_mast_points: List of 3D points for the top wire attachment.
-            - bottom_mast_points: List of 3D points for the bottom wire attachment.
-    """
-    top_mast_points = []
-    bottom_mast_points = []
-    for normalized_t, mast_type_key in MASTS:
-        mast_position = eval_curve(curve_points, normalized_t)
-        mast_definition = MAST_TYPES[mast_type_key]
-        top_mast_points.append(mast_position + Vector((mast_definition["top_offset"].x, 0, mast_definition["top_offset"].y)))
-        bottom_mast_points.append(mast_position + Vector((mast_definition["bottom_offset"].x, 0, mast_definition["bottom_offset"].y)))
-    return top_mast_points, bottom_mast_points
 
 
 def build_top_wire(top_mast_points, bottom_mast_points):
@@ -558,9 +674,7 @@ def make_overhead_wire():
     """
     Main execution function that generates overhead wire.
     """
-    curve_object = bpy.data.objects[CURVE_NAME]
-    curve_points = sample_curve(curve_object)
-    top_mast_points, bottom_mast_points = calculate_mast_positions(curve_points)
+    top_mast_points, bottom_mast_points = calculate_mast_wire_positions()
     top_wire_points = build_top_wire(top_mast_points, bottom_mast_points)
     bottom_wire_points = build_bottom_wire(top_mast_points, bottom_mast_points)
     build_connectors(top_wire_points, bottom_wire_points)
