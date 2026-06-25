@@ -29,8 +29,8 @@ WIRE_THICKNESS = 0.03
 WIRE_SAG_RATIO = 0.011
 
 WORLD_UP = Vector((0, 0, 1))
-#WORLD_FOLDER = "/media/peter/T7 Shield/Repos/personal/openrails-route-dk24/ROUTES/OR_DK24/WORLD"
-WORLD_FOLDER = "D:\Games\Open Rails\Content\PGA DK24\ROUTES\OR_DK24\WORLD"
+WORLD_FOLDER = "/media/peter/T7 Shield/Repos/personal/openrails-route-dk24/ROUTES/OR_DK24/WORLD"
+#WORLD_FOLDER = "D:\Games\Open Rails\Content\PGA DK24\ROUTES\OR_DK24\WORLD"
 
 TILE_SIZE = 2048
 
@@ -246,7 +246,7 @@ def calculate_mast_wire_positions(masts):
         list: A list of `mathutils.Vector` objects, each representing a
               3D point in Blender's coordinate system where a wire should attach.
     """
-    return_mast_points = []
+    wire_mast_points = []
     mast_data = read_mast_data(masts)
     for i, mast_entry in enumerate(mast_data):
         mast_tile = Vector((mast_entry[1], mast_entry[2]))
@@ -264,18 +264,18 @@ def calculate_mast_wire_positions(masts):
         mast_forward = mast_rotation @ Vector((1, 0, 0))
         mast_right = mast_rotation @ Vector((0, 1, 0))
         mast_up = mast_rotation @ Vector((0, 0, 1))
-        return_local = Vector((
+        attachment_point_local = Vector((
             mast_definition["offset"].y,
             mast_definition["offset"].x,
             mast_definition["offset"].z
         ))
-        return_point = mast_position + (
-            mast_right * return_local.x +
-            mast_forward * return_local.y +
-            mast_up * return_local.z
+        attachment_point = mast_position + (
+            mast_right * attachment_point_local.x +
+            mast_forward * attachment_point_local.y +
+            mast_up * attachment_point_local.z
         )
-        return_mast_points.append(return_point)
-    return return_mast_points
+        wire_mast_points.append(attachment_point)
+    return wire_mast_points
 
 
 def build_wire(name, wire_attachment_points):
@@ -294,7 +294,7 @@ def build_wire(name, wire_attachment_points):
     Returns:
         None: This function creates and links objects directly within Blender.
     """
-    return_wire_path_points = []
+    wire_path_points = []
     for segment_index in range(len(wire_attachment_points) - 1):
         start_point = wire_attachment_points[segment_index]
         end_point = wire_attachment_points[segment_index + 1]
@@ -306,20 +306,20 @@ def build_wire(name, wire_attachment_points):
             arch_factor = 4 * interpolation_factor * (1 - interpolation_factor)
             sag_amount = max_sag_for_this_span * arch_factor
             wire_point = interpolated_base_point - WORLD_UP * sag_amount
-            return_wire_path_points.append(wire_point)
-    if not return_wire_path_points:
+            wire_path_points.append(wire_point)
+    if not wire_path_points:
         print("Warning: No path points generated for return wire. Skipping mesh creation.")
         return None
     mesh_vertices = []
     mesh_uvs = []
     mesh_faces = []
     profile_point_count = len(PROFILE_WIRE)
-    for i in range(len(return_wire_path_points)):
-        current_path_point = return_wire_path_points[i]
-        if i < len(return_wire_path_points) - 1:
-            segment_direction = (return_wire_path_points[i+1] - current_path_point)
+    for i in range(len(wire_path_points)):
+        current_path_point = wire_path_points[i]
+        if i < len(wire_path_points) - 1:
+            segment_direction = (wire_path_points[i+1] - current_path_point)
         elif i > 0:
-            segment_direction = (current_path_point - return_wire_path_points[i-1])
+            segment_direction = (current_path_point - wire_path_points[i-1])
         else:
             segment_direction = Vector((1, 0, 0))
         if segment_direction.length_squared < 1e-6:
