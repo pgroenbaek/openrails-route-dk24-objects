@@ -17,96 +17,103 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
 import math
+from pathlib import Path
 from math import sin, cos, pi
-from mathutils import Vector
+from mathutils import Vector, Quaternion, Matrix
 
 MATERIAL_NAME = "Wire"
 
-RETURN_WIRE_RESOLUTION = 6
-RETURN_WIRE_THICKNESS = 0.03
-RETURN_WIRE_SAG_RATIO = 0.01
+WIRE_NAME = "ReturnWire"
+WIRE_SPAN_RESOLUTION = 6
+WIRE_THICKNESS = 0.03
+WIRE_SAG_RATIO = 0.011
 
 WORLD_UP = Vector((0, 0, 1))
-WORLD_FOLDER = "/media/peter/T7 Shield/Repos/personal/openrails-route-dk24/ROUTES/OR_DK24/WORLD"
+#WORLD_FOLDER = "/media/peter/T7 Shield/Repos/personal/openrails-route-dk24/ROUTES/OR_DK24/WORLD"
+WORLD_FOLDER = "D:\Games\Open Rails\Content\PGA DK24\ROUTES\OR_DK24\WORLD"
 
 TILE_SIZE = 2048
 
+# This position and tile is where to place the generated object in world coordinates.
+# Rotation of the object should be QDirection( 0 0 0 1 ).
 REFERENCE_POSITION_X = -874.908
 REFERENCE_POSITION_Y = 14.4113
 REFERENCE_POSITION_Z = -828.282
 REFERENCE_TILE_X = -5656
 REFERENCE_TILE_Y = 15119
 
-PROFILE_RETURN_WIRE = [
-    (Vector((0.0,  RETURN_WIRE_THICKNESS / 2.0)), Vector((0.0, 0.9727))),
-    (Vector((RETURN_WIRE_THICKNESS / 2.0, 0.0)), Vector((0.0, 0.9492))),
-    (Vector((0.0, -(RETURN_WIRE_THICKNESS / 2.0))), Vector((0.0, 0.9727))),
-    (Vector((-(RETURN_WIRE_THICKNESS / 2.0), 0.0)), Vector((0.0, 0.9492))),
+PROFILE_WIRE = [
+    (Vector((0.0,  WIRE_THICKNESS / 2.0)), Vector((0.0, 0.00))),
+    (Vector((WIRE_THICKNESS / 2.0, 0.0)), Vector((0.0, 0.08))),
+    (Vector((0.0, -(WIRE_THICKNESS / 2.0))), Vector((0.0, 0.00))),
+    (Vector((-(WIRE_THICKNESS / 2.0), 0.0)), Vector((0.0, 0.08))),
 ]
 
 MAST_TYPES = {
     "PGA_DKGantry_N1t6m_KL.s": [
-        {"return_offset": Vector((-2.799, 6.98))},
+        {"offset": Vector((-2.799, 0.0, 6.98))},
     ],
     "PGA_DKGantry_N1t6m_KR.s": [
-        {"return_offset": Vector((-2.799, 6.98))},
+        {"offset": Vector((2.799, 0.0, 6.98))},
     ],
     "PGA_DKGantry_N1t6m_LL.s": [
-        {"return_offset": Vector((2.799, 6.98))},
+        {"offset": Vector((-2.799, 0.0, 6.98))},
     ],
     "PGA_DKGantry_N1t6m_LR.s": [
-        {"return_offset": Vector((2.799, 6.98))},
+        {"offset": Vector((2.799, 0.0, 6.98))},
     ],
     "PGA_DKGantry_N2t6m_K.s": [
-        {"return_offset": Vector((5.299, 6.98))},
-        {"return_offset": Vector((-5.299, 6.98))},
+        {"offset": Vector((5.299, 0.0, 6.98))},
+        {"offset": Vector((-5.299, 0.0, 6.98))},
     ],
     "PGA_DKGantry_N2t6m_L.s": [
-        {"return_offset": Vector((5.299, 6.98))},
-        {"return_offset": Vector((-5.299, 6.98))},
+        {"offset": Vector((5.299, 0.0, 6.98))},
+        {"offset": Vector((-5.299, 0.0, 6.98))},
     ],
 }
 
-
-MASTS = [
-    #UiD, TileX, TileY, offset_index (for the specific shape within MAST_TYPES)
-    # [6955, -5656, 15119, 0],
-    # [6956, -5656, 15119, 0],
-    # [6958, -5656, 15119, 0],
-    # [6959, -5656, 15119, 0],
-    # [6960, -5656, 15119, 0],
-    # [6961, -5656, 15119, 0],
-    # [112, -5657, 15119, 0],
-    # [113, -5657, 15119, 0],
-    # [3231, -5657, 15118, 0],
-    # [3232, -5657, 15118, 0],
-    # [3241, -5657, 15118, 0],
-    # [3245, -5657, 15118, 0],
-    # [3243, -5657, 15118, 0],
-    # [3233, -5657, 15118, 0],
-    # [3234, -5657, 15118, 0],
-    # [3253, -5657, 15118, 0],
-    # [3254, -5657, 15118, 0],
-    ####
-    [6955, -5656, 15119, 1],
-    [6956, -5656, 15119, 1],
-    [6958, -5656, 15119, 1],
-    [6959, -5656, 15119, 1],
-    [6960, -5656, 15119, 1],
-    [6961, -5656, 15119, 1],
-    [112, -5657, 15119, 1],
-    [113, -5657, 15119, 1],
-    [3231, -5657, 15118, 1],
-    [3232, -5657, 15118, 1],
-    [3240, -5657, 15118, 0],
-    [3246, -5657, 15118, 0],
-    [3248, -5657, 15118, 0],
-    [3247, -5657, 15118, 0],
-    [3233, -5657, 15118, 1],
-    [3234, -5657, 15118, 1],
-    [3253, -5657, 15118, 1],
-    [3254, -5657, 15118, 1],
-]
+MASTS = {
+    "Track1": [
+        #UiD, TileX, TileY, offset_index (for the corresponding shape within MAST_TYPES)
+        [6955, -5656, 15119, 0],
+        [6956, -5656, 15119, 0],
+        [6958, -5656, 15119, 0],
+        [6959, -5656, 15119, 0],
+        [6960, -5656, 15119, 0],
+        [6961, -5656, 15119, 0],
+        [112, -5657, 15119, 0],
+        [113, -5657, 15119, 0],
+        [3231, -5657, 15118, 0],
+        [3232, -5657, 15118, 0],
+        [3241, -5657, 15118, 0],
+        [3245, -5657, 15118, 0],
+        [3243, -5657, 15118, 0],
+        [3233, -5657, 15118, 0],
+        [3234, -5657, 15118, 0],
+        [3253, -5657, 15118, 0],
+        [3254, -5657, 15118, 0],
+    ],
+    "Track2": [
+        [6955, -5656, 15119, 1],
+        [6956, -5656, 15119, 1],
+        [6958, -5656, 15119, 1],
+        [6959, -5656, 15119, 1],
+        [6960, -5656, 15119, 1],
+        [6961, -5656, 15119, 1],
+        [112, -5657, 15119, 1],
+        [113, -5657, 15119, 1],
+        [3231, -5657, 15118, 1],
+        [3232, -5657, 15118, 1],
+        [3240, -5657, 15118, 0],
+        [3246, -5657, 15118, 0],
+        [3248, -5657, 15118, 0],
+        [3247, -5657, 15118, 0],
+        [3233, -5657, 15118, 1],
+        [3234, -5657, 15118, 1],
+        [3253, -5657, 15118, 1],
+        [3254, -5657, 15118, 1],
+    ],
+}
 
 
 def calculate_blender_coordinates(position, tile_coords):
@@ -126,42 +133,38 @@ def calculate_blender_coordinates(position, tile_coords):
     return Vector((blender_x, blender_y, blender_z))
 
 
-def read_mast_data():
+def read_mast_data(masts):
     """
-    Builds a list of mast data by reading required world tiles.
+    Reads mast data from world files based on provided mast entries.
+
+    This function iterates through the `masts` list, extracts unique tile
+    coordinates and UIDs, then reads the corresponding world files to
+    find the position, rotation, and shape name for each specified mast.
+
+    Args:
+        masts (list): A list of mast entries, where each entry is
+                      [UiD, TileX, TileY, offset_index].
 
     Returns:
-        List: [
-            uid,
-            tilex,
-            tiley,
-            filename,
-            Vector(position),
-            Quaternion(qdirection),
-        ]
+        list: A list of processed mast data entries, each containing:
+              [uid, tile_x, tile_y, file_name, position, qdirection, offset_index].
+              Returns an empty list if no valid mast data is found.
     """
     mast_data = []
     tiles_to_uids = {}
-    track_nr_lookup = {}
-    A = Matrix((
-        (1, 0, 0, 0),
-        (0, 0, 1, 0),
-        (0, 1, 0, 0),
-        (0, 0, 0, 1),
-    ))
-    for mast_entry in MASTS:
+    offset_index_lookup = {}
+    for mast_entry in masts:
         uid = mast_entry[0]
         tile_x = mast_entry[1]
         tile_y = mast_entry[2]
-        track_nr = mast_entry[3]
+        offset_index = mast_entry[3]
         key = (tile_x, tile_y, uid)
-        if key not in track_nr_lookup:
-            track_nr_lookup[key] = track_nr
+        if key not in offset_index_lookup:
+            offset_index_lookup[key] = offset_index
         key = (tile_x, tile_y)
         if key not in tiles_to_uids:
             tiles_to_uids[key] = set()
         tiles_to_uids[key].add(uid)
-    tile_cache = {}
     tile_data = {}
     for tile_coords in tiles_to_uids:
         tile_x = tile_coords[0]
@@ -174,7 +177,7 @@ def read_mast_data():
         uid = None
         file_name = None
         position = None
-        qx = qy = qz = qw = None
+        qdirection = None
         in_static = False
         lines = file_path.read_text(encoding="utf-16-le", errors="ignore").splitlines()
         for line in lines:
@@ -183,7 +186,7 @@ def read_mast_data():
                 uid = None
                 file_name = None
                 position = None
-                qx = qy = qz = qw = None
+                qdirection = None
                 in_static = True
                 continue
             if in_static:
@@ -202,12 +205,11 @@ def read_mast_data():
                         qy = float(parts[1])
                         qz = float(parts[2])
                         qw = float(parts[3])
+                        qdirection = Quaternion((qw, qx, qz, qy))
+                        qdirection.normalize()
                 elif ")" in line:
                     in_static = False
                     if uid in tiles_to_uids[(tile_x, tile_y)] and uid is not None:
-                        M = Quaternion((qw, qx, qy, qz)).to_matrix().to_4x4()
-                        M2 = A @ M @ A.inverted()
-                        qdirection = M2.to_quaternion()
                         tile_data[(tile_x, tile_y, uid)] = [
                             uid,
                             tile_x,
@@ -215,9 +217,9 @@ def read_mast_data():
                             file_name,
                             position,
                             qdirection,
-                            track_nr_lookup[(tile_x, tile_y, uid)],
+                            offset_index_lookup[(tile_x, tile_y, uid)],
                         ]
-    for mast_entry in MASTS:
+    for mast_entry in masts:
         tile_x = mast_entry[1]
         tile_y = mast_entry[2]
         uid = mast_entry[0]
@@ -227,29 +229,45 @@ def read_mast_data():
     return mast_data
 
 
-def calculate_mast_wire_positions():
+def calculate_mast_wire_positions(masts):
+    """
+    Calculates the 3D attachment points for wires on masts.
+
+    This function reads mast data, transforms their game world positions
+    and orientations to Blender coordinates, and then applies specific
+    offsets defined in `MAST_TYPES` to determine the exact attachment
+    points for the wires.
+
+    Args:
+        masts (list): A list of mast entries, where each entry is
+                      [UiD, TileX, TileY, offset_index].
+
+    Returns:
+        list: A list of `mathutils.Vector` objects, each representing a
+              3D point in Blender's coordinate system where a wire should attach.
+    """
     return_mast_points = []
-    mast_data = read_mast_data()
+    mast_data = read_mast_data(masts)
     for i, mast_entry in enumerate(mast_data):
         mast_tile = Vector((mast_entry[1], mast_entry[2]))
         mast_position = calculate_blender_coordinates(mast_entry[4], mast_tile)
         mast_rotation = mast_entry[5]
         mast_type_key = mast_entry[3]
-        track_nr = mast_entry[6]
+        offset_index = mast_entry[6]
         if mast_type_key not in MAST_TYPES:
             print(f"Warning: Invalid mast type '{mast_type_key}'. Skipping mast.")
             continue
-        if track_nr >= len(MAST_TYPES[mast_type_key]):
-            print(f"Warning: Invalid track nr '{track_nr}' for type '{mast_type_key}'. Skipping mast.")
+        if offset_index >= len(MAST_TYPES[mast_type_key]):
+            print(f"Warning: Invalid offset index '{offset_index}' for type '{mast_type_key}'. Skipping mast.")
             continue
-        mast_definition = MAST_TYPES[mast_type_key][track_nr]
+        mast_definition = MAST_TYPES[mast_type_key][offset_index]
         mast_forward = mast_rotation @ Vector((1, 0, 0))
         mast_right = mast_rotation @ Vector((0, 1, 0))
         mast_up = mast_rotation @ Vector((0, 0, 1))
         return_local = Vector((
-            mast_definition["return_offset"].x,
-            0.0,
-            mast_definition["return_offset"].y
+            mast_definition["offset"].y,
+            mast_definition["offset"].x,
+            mast_definition["offset"].z
         ))
         return_point = mast_position + (
             mast_right * return_local.x +
@@ -260,26 +278,30 @@ def calculate_mast_wire_positions():
     return return_mast_points
 
 
-def make_return_wire():
+def build_wire(name, wire_attachment_points):
     """
-    Generates the mesh for the return overhead wire.
+    Generates a 3D wire mesh in Blender based on a series of attachment points.
 
-    The wire path is determined by attachment points defined in the global MASTS list
-    and interpolated along the main curve_points. Sag is applied based on a
-    ratio of the span length for each segment.
+    The wire is constructed by creating segments between consecutive attachment points,
+    applying a sag profile, and then extruding a 2D profile along the resulting path.
+    A new Blender mesh object is created, linked to the scene, and assigned a material.
+
+    Args:
+        name (str): The base name for the Blender object and mesh (e.g., "Track1").
+        wire_attachment_points (list): A list of `mathutils.Vector` objects defining
+                                       the start and end points of each wire span.
 
     Returns:
-        bpy.types.Object: The created Blender object for the return wire, or None if no masts are defined.
+        None: This function creates and links objects directly within Blender.
     """
-    return_wire_attachment_points = calculate_mast_wire_positions()
     return_wire_path_points = []
-    for segment_index in range(len(return_wire_attachment_points) - 1):
-        start_point = return_wire_attachment_points[segment_index]
-        end_point = return_wire_attachment_points[segment_index + 1]
+    for segment_index in range(len(wire_attachment_points) - 1):
+        start_point = wire_attachment_points[segment_index]
+        end_point = wire_attachment_points[segment_index + 1]
         span_length = (end_point - start_point).length
-        max_sag_for_this_span = span_length * RETURN_WIRE_SAG_RATIO
-        for span_sub_index in range(RETURN_WIRE_RESOLUTION + 1):
-            interpolation_factor = span_sub_index / RETURN_WIRE_RESOLUTION
+        max_sag_for_this_span = span_length * WIRE_SAG_RATIO
+        for span_sub_index in range(WIRE_SPAN_RESOLUTION + 1):
+            interpolation_factor = span_sub_index / WIRE_SPAN_RESOLUTION
             interpolated_base_point = start_point.lerp(end_point, interpolation_factor)
             arch_factor = 4 * interpolation_factor * (1 - interpolation_factor)
             sag_amount = max_sag_for_this_span * arch_factor
@@ -291,7 +313,7 @@ def make_return_wire():
     mesh_vertices = []
     mesh_uvs = []
     mesh_faces = []
-    profile_point_count = len(PROFILE_RETURN_WIRE)
+    profile_point_count = len(PROFILE_WIRE)
     for i in range(len(return_wire_path_points)):
         current_path_point = return_wire_path_points[i]
         if i < len(return_wire_path_points) - 1:
@@ -305,16 +327,12 @@ def make_return_wire():
         else:
             segment_direction.normalize()
         right_vector = segment_direction.cross(WORLD_UP)
-        if right_vector.length_squared < 1e-6:
-            if abs(segment_direction.dot(Vector((0,1,0)))) > 0.9:
-                right_vector = segment_direction.cross(Vector((1,0,0))).normalized()
-            else:
-                right_vector = segment_direction.cross(Vector((0,1,0))).normalized()
-        else:
-            right_vector.normalize()
+        if right_vector.length_squared < 1e-12:
+            right_vector = Vector((1, 0, 0)).cross(segment_direction)
+        right_vector.normalize()
         upward_vector = right_vector.cross(segment_direction).normalized()
         base_vertex_index = len(mesh_vertices)
-        for profile_offset, texcoord in PROFILE_RETURN_WIRE:
+        for profile_offset, texcoord in PROFILE_WIRE:
             mesh_vertices.append(
                 current_path_point +
                 right_vector * profile_offset.x +
@@ -331,8 +349,8 @@ def make_return_wire():
                     base_vertex_index + next_p_idx,
                     base_vertex_index + p_idx
                 ))
-    mesh = bpy.data.meshes.new("ReturnWire")
-    obj = bpy.data.objects.new("ReturnWire", mesh)
+    mesh = bpy.data.meshes.new(f"{name}_{WIRE_NAME}")
+    obj = bpy.data.objects.new(f"{name}_{WIRE_NAME}", mesh)
     bpy.context.collection.objects.link(obj)
     material = bpy.data.materials.get(MATERIAL_NAME)
     if material is None:
@@ -351,7 +369,19 @@ def make_return_wire():
         for loop_index in poly.loop_indices:
             vertex_index = mesh.loops[loop_index].vertex_index
             uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
-    return obj
 
 
-make_return_wire()
+def make_wire():
+    """
+    Main function to create wire objects in Blender.
+
+    This function iterates through the `MASTS` dictionary, calculating
+    the attachment points for each defined track and then constructing
+    the corresponding wire mesh in Blender.
+    """
+    for name, masts in MASTS.items():
+        wire_attachment_points = calculate_mast_wire_positions(masts)
+        build_wire(name, wire_attachment_points)
+
+
+make_wire()
