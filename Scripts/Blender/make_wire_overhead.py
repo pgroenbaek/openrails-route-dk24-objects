@@ -24,6 +24,7 @@ from mathutils import Vector, Quaternion, Matrix
 
 MATERIAL_NAME = "Wire"
 MATERIAL_MSTS_TEXTURE_NAME = "DB_Rails1.png"
+LOD_DISTANCE_METERS = 500
 
 TOP_WIRE_SPAN_RESOLUTION = 6
 TOP_WIRE_SAG_CLEARANCE = 0.4
@@ -125,6 +126,24 @@ MASTS = {
         [3254, -5657, 15118, 1],
     ],
 }
+
+
+def get_collection(collection, name):
+    """
+    Recursively searches for a collection by name within a given collection and its children.
+
+    Args:
+        collection (bpy.types.Collection): The starting collection to search within.
+        name (str): The name of the collection to find.
+
+    Returns:
+        bpy.types.Collection or None: The found collection, or None if not found.
+    """
+    for c in collection.children:
+        if c.name == name:
+            return c
+    return None
+
 
 def calculate_blender_coordinates(position, tile_coords):
     """
@@ -449,7 +468,16 @@ def build_top_wire(name, top_mast_points, bottom_mast_points):
                 ))
     mesh = bpy.data.meshes.new(f"{name}_TopWire")
     obj = bpy.data.objects.new(f"{name}_TopWire", mesh)
-    bpy.context.collection.objects.link(obj)
+    main_collection = get_collection(bpy.context.scene.collection, "MAIN")
+    if main_collection is None:
+        main_collection = bpy.data.collections.new("MAIN")
+        bpy.context.scene.collection.children.link(main_collection)
+    dlevel_collection_name = f"MAIN_{int(LOD_DISTANCE_METERS):04d}"
+    dlevel_collection = get_collection(main_collection, dlevel_collection_name)
+    if dlevel_collection is None:
+        dlevel_collection = bpy.data.collections.new(dlevel_collection_name)
+        main_collection.children.link(dlevel_collection)
+    dlevel_collection.objects.link(obj)
     material = bpy.data.materials.get(MATERIAL_NAME)
     if material is None:
         material = bpy.data.materials.new(MATERIAL_NAME)
@@ -553,7 +581,16 @@ def build_bottom_wire(name, top_mast_points, bottom_mast_points):
             ))
     mesh = bpy.data.meshes.new(f"{name}_BottomWire")
     obj = bpy.data.objects.new(f"{name}_BottomWire", mesh)
-    bpy.context.collection.objects.link(obj)
+    main_collection = get_collection(bpy.context.scene.collection, "MAIN")
+    if main_collection is None:
+        main_collection = bpy.data.collections.new("MAIN")
+        bpy.context.scene.collection.children.link(main_collection)
+    dlevel_collection_name = f"MAIN_{int(LOD_DISTANCE_METERS):04d}"
+    dlevel_collection = get_collection(main_collection, dlevel_collection_name)
+    if dlevel_collection is None:
+        dlevel_collection = bpy.data.collections.new(dlevel_collection_name)
+        main_collection.children.link(dlevel_collection)
+    dlevel_collection.objects.link(obj)
     material = bpy.data.materials.get(MATERIAL_NAME)
     if material is None:
         material = bpy.data.materials.new(MATERIAL_NAME)
@@ -708,7 +745,16 @@ def build_connectors(name, top_wire_points, bottom_wire_points):
             ))
     mesh = bpy.data.meshes.new(f"{name}_Connectors")
     obj = bpy.data.objects.new(f"{name}_Connectors", mesh)
-    bpy.context.collection.objects.link(obj)
+    main_collection = get_collection(bpy.context.scene.collection, "MAIN")
+    if main_collection is None:
+        main_collection = bpy.data.collections.new("MAIN")
+        bpy.context.scene.collection.children.link(main_collection)
+    dlevel_collection_name = f"MAIN_{int(LOD_DISTANCE_METERS):04d}"
+    dlevel_collection = get_collection(main_collection, dlevel_collection_name)
+    if dlevel_collection is None:
+        dlevel_collection = bpy.data.collections.new(dlevel_collection_name)
+        main_collection.children.link(dlevel_collection)
+    dlevel_collection.objects.link(obj)
     material = bpy.data.materials.get(MATERIAL_NAME)
     if material is None:
         material = bpy.data.materials.new(MATERIAL_NAME)
