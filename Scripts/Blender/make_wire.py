@@ -227,6 +227,12 @@ def read_mast_data(masts):
                         qw = float(parts[3])
                         qdirection = Quaternion((qw, qx, qz, qy))
                         qdirection.normalize()
+                elif line.startswith("Matrix3x3"):
+                    pass
+                elif line.startswith("VDbId"):
+                    pass
+                elif line.startswith("StaticFlags"):
+                    pass
                 elif ")" in line:
                     in_static = False
                     if uid in tiles_to_uids[(tile_x, tile_y)] and uid is not None:
