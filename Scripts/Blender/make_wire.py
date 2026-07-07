@@ -21,7 +21,9 @@ from pathlib import Path
 from math import sin, cos, pi
 from mathutils import Vector, Quaternion, Matrix
 
+
 MATERIAL_NAME = "Wire"
+MATERIAL_MSTS_TEXTURE_NAME = "DB_Rails1.png"
 
 WIRE_NAME = "ReturnWire"
 WIRE_SPAN_RESOLUTION = 6
@@ -255,7 +257,7 @@ def calculate_mast_wire_positions(masts):
         mast_type_key = mast_entry[3]
         offset_index = mast_entry[6]
         if mast_type_key not in MAST_TYPES:
-            print(f"Warning: Invalid mast type '{mast_type_key}'. Skipping mast.")
+            print(f"Warning: Mast type '{mast_type_key}' from entry {mast_entry} not defined in MAST_TYPES. Skipping mast.")
             continue
         if offset_index >= len(MAST_TYPES[mast_type_key]):
             print(f"Warning: Invalid offset index '{offset_index}' for type '{mast_type_key}'. Skipping mast.")
@@ -357,6 +359,10 @@ def build_wire(name, wire_attachment_points):
         material = bpy.data.materials.new(MATERIAL_NAME)
     if material.name not in obj.data.materials:
         obj.data.materials.append(material)
+    if hasattr(material, "msts"):
+        if hasattr(material.msts, "BaseColorFilepath"):
+            if material.msts.BaseColorFilepath is None or material.msts.BaseColorFilepath == '':
+                material.msts.BaseColorFilepath = MATERIAL_MSTS_TEXTURE_NAME
     material_index = obj.data.materials.find(material.name)
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
