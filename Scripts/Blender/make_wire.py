@@ -199,17 +199,27 @@ def read_mast_data(masts):
         position = None
         qdirection = None
         in_static = False
+        in_gantry = False
         lines = file_path.read_text(encoding="utf-16-le", errors="ignore").splitlines()
         for line in lines:
             line = line.strip()
-            if line.startswith("Static"):
+            if line.startswith("Static ("):
                 uid = None
                 file_name = None
                 position = None
                 qdirection = None
                 in_static = True
+                in_gantry = False
                 continue
-            if in_static:
+            if line.startswith("Gantry ("):
+                uid = None
+                file_name = None
+                position = None
+                qdirection = None
+                in_static = False
+                in_gantry = True
+                continue
+            if in_static or in_gantry:
                 if line.startswith("UiD"):
                     uid = int(line.split("(")[1].split(")")[0])
                 elif line.startswith("FileName"):
@@ -228,13 +238,16 @@ def read_mast_data(masts):
                         qdirection = Quaternion((qw, qx, qz, qy))
                         qdirection.normalize()
                 elif line.startswith("Matrix3x3"):
-                    pass
+                    continue
                 elif line.startswith("VDbId"):
-                    pass
+                    continue
                 elif line.startswith("StaticFlags"):
-                    pass
+                    continue
+                elif line.startswith("StaticDetailLevel"):
+                    continue
                 elif ")" in line:
                     in_static = False
+                    in_gantry = False
                     if uid in tiles_to_uids[(tile_x, tile_y)] and uid is not None:
                         tile_data[(tile_x, tile_y, uid)] = [
                             uid,
@@ -334,7 +347,7 @@ def build_wire(name, wire_attachment_points):
             wire_point = interpolated_base_point - WORLD_UP * sag_amount
             wire_path_points.append(wire_point)
     if not wire_path_points:
-        print("Warning: No path points generated for return wire. Skipping mesh creation.")
+        print("Warning: No path points generated for wire. Skipping mesh creation.")
         return None
     mesh_vertices = []
     mesh_uvs = []

@@ -208,17 +208,27 @@ def read_mast_data(masts):
         position = None
         qdirection = None
         in_static = False
+        in_gantry = False
         lines = file_path.read_text(encoding="utf-16-le", errors="ignore").splitlines()
         for line in lines:
             line = line.strip()
-            if line.startswith("Static"):
+            if line.startswith("Static ("):
                 uid = None
                 file_name = None
                 position = None
                 qdirection = None
                 in_static = True
+                in_gantry = False
                 continue
-            if in_static:
+            if line.startswith("Gantry ("):
+                uid = None
+                file_name = None
+                position = None
+                qdirection = None
+                in_static = False
+                in_gantry = True
+                continue
+            if in_static or in_gantry:
                 if line.startswith("UiD"):
                     uid = int(line.split("(")[1].split(")")[0])
                 elif line.startswith("FileName"):
@@ -237,13 +247,16 @@ def read_mast_data(masts):
                         qdirection = Quaternion((qw, qx, qz, qy))
                         qdirection.normalize()
                 elif line.startswith("Matrix3x3"):
-                    pass
+                    continue
                 elif line.startswith("VDbId"):
-                    pass
+                    continue
                 elif line.startswith("StaticFlags"):
-                    pass
+                    continue
+                elif line.startswith("StaticDetailLevel"):
+                    continue
                 elif ")" in line:
                     in_static = False
+                    in_gantry = False
                     if uid in tiles_to_uids[(tile_x, tile_y)] and uid is not None:
                         tile_data[(tile_x, tile_y, uid)] = [
                             uid,
@@ -472,6 +485,9 @@ def build_top_wire(name, top_mast_points, bottom_mast_points):
                     base_vertex_index + 0,
                     base_vertex_index + 2
                 ))
+    if not top_wire_points:
+        print("Warning: No path points generated for top wire. Skipping mesh creation.")
+        return None
     mesh = bpy.data.meshes.new(f"{name}_TopWire")
     obj = bpy.data.objects.new(f"{name}_TopWire", mesh)
     main_collection = get_collection(bpy.context.scene.collection, "MAIN")
@@ -585,6 +601,9 @@ def build_bottom_wire(name, top_mast_points, bottom_mast_points):
                 base_vertex_index + 0,
                 base_vertex_index + 2
             ))
+    if not bottom_wire_points:
+        print("Warning: No path points generated for bottom wire. Skipping mesh creation.")
+        return None
     mesh = bpy.data.meshes.new(f"{name}_BottomWire")
     obj = bpy.data.objects.new(f"{name}_BottomWire", mesh)
     main_collection = get_collection(bpy.context.scene.collection, "MAIN")
@@ -798,7 +817,8 @@ def make_overhead_wire():
         top_mast_points, bottom_mast_points = calculate_mast_wire_positions(masts)
         top_wire_points = build_top_wire(name, top_mast_points, bottom_mast_points)
         bottom_wire_points = build_bottom_wire(name, top_mast_points, bottom_mast_points)
-        build_connectors(name, top_wire_points, bottom_wire_points)
+        if top_wire_points is not None and bottom_wire_points is not None:
+            build_connectors(name, top_wire_points, bottom_wire_points)
 
 
 make_overhead_wire()
