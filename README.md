@@ -8,7 +8,7 @@
 
 ![Denmark 2024](./DK24_small.png)
 
-Blender models and textures for the [Denmark 2024 Open Rails route](https://github.com/pgroenbaek/openrails-route-dk24).
+Blender scripts, models, and textures for the [Denmark 2024 Open Rails route](https://github.com/pgroenbaek/openrails-route-dk24).
 
 ## Usage
 
@@ -23,7 +23,28 @@ Any `.xcf` and `.blend` files can be opened using GIMP and Blender respectively.
 
 ### Running the Python scripts
 
-Python scripts found within the [/Scripts](/Scripts) folder can be run by pasting them into GIMP's and Blender's scripting consoles.
+#### Via Blender's Scripting Console
+
+Configure the `CONFIGS` list in `run_operations.py` by adding config files to it.
+
+Then paste that entire script into Blender's scripting console to create those objects/textures.
+
+
+#### Via Blender Headless Mode
+
+Running a single config:
+
+```bash
+blender -b -P run_operations.py -- --config configs/dk_wire/PGA_DKWire_Odense_162_7.json
+```
+
+Running multiple configs:
+
+```bash
+blender -b -P run_operations.py -- \
+    --config configs/dk_wire/PGA_DKWire_Odense_162_7.json \
+    --config configs/dk_wire/PGA_DKWire_Odense_163_7.json
+```
 
 ## License
 

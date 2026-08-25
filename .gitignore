@@ -1,11 +1,12 @@
-
-
+### Local files ###
 **/*.s
 **/*.sd
 **/*.ace
 **/*.blend1
-dk24-objects
-
+/dk24-objects
+/old_models
+/old_textures
+/dist
 
 ### FFEDITC utility files ###
 appids.tok
@@ -17,7 +18,6 @@ loadstr.hdr
 newshape.bnf
 sidn.txt
 worldfile.bnf
-
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
