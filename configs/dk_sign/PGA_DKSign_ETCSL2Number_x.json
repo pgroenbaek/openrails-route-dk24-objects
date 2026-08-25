@@ -1,0 +1,39 @@
+{
+    "operation_type": "export_s",
+    "parameters": {
+        "export_path": "/output",
+        "material_name": "PGA_DKSign_ETCSL2Number_x",
+        "shape_name_pattern": "PGA_DKSign_ETCSL2Number_{value}_L",
+        "texture_name_pattern": "PGA_DKSign_ETCSL2Number_{value}",
+        "value_replacements": {
+            "-": ""
+        },
+        "groups": [
+            {
+                "prefix": "Ig",
+                "start": 58,
+                "stop": 59
+            },
+            {
+                "prefix": "Ada",
+                "start": 11,
+                "stop": 30
+            },
+            {
+                "prefix": "Avh",
+                "start": 11,
+                "stop": 55
+            },
+            {
+                "prefix": "Bjs",
+                "start": 11,
+                "stop": 51
+            },
+            {
+                "prefix": "Kib",
+                "start": 7,
+                "stop": 60
+            }
+        ]
+    }
+}

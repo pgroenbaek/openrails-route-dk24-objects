@@ -1,0 +1,27 @@
+[
+    {
+        "operation_type": "import_blend",
+        "parameters": {
+            "file_path": "./blender_fragments/dk_gantry/PGA_DKGantry_Fe.blend",
+            "collection_name": "MAIN",
+            "location": [0.0, 0.0, 0.0],
+            "rotation": [0.0, 0.0, 0.0],
+            "scale": [1.0, 1.0, 1.0]
+        }
+    },
+    {
+        "operation_type": "export_s",
+        "parameters": {
+            "export_path": "./dist/dk_gantry",
+            "shape_name": "PGA_DKGantry_Fe"
+        }
+    },
+    {
+        "operation_type": "export_sd",
+        "parameters": {
+            "collection_name": "MAIN_0400",
+            "export_path": "./dist/dk_gantry",
+            "shape_name": "PGA_DKGantry_Fe"
+      }
+    }
+]

@@ -1,0 +1,26 @@
+{
+    "operation_type": "export_s",
+    "parameters": {
+        "export_path": "/output",
+        "material_name": "PGA_DKSign_Location_x",
+        "shape_name_pattern": "PGA_DKSign_Location_{value}",
+        "texture_name_pattern": "PGA_DKSign_Location_{value}",
+        "value_replacements": {
+            "Æ": "Ae",
+            "æ": "ae",
+            "Ø": "Oe",
+            "ø": "oe",
+            "Å": "Aa",
+            "å": "aa",
+            " ": "",
+            ".": ""
+        },
+        "values": [
+            "Aarup",
+            "Borup",
+            "København H",
+            "Østerport",
+            "Høje Taastrup"
+        ]
+    }
+}

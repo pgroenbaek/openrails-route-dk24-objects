@@ -27,7 +27,7 @@ from mathutils import Vector
 PROJECT_DIR = Path(r"/media/peter/T7 Shield/Repos/personal/openrails-route-dk24-objects")
 
 CONFIG_FILES = [
-    PROJECT_DIR / "configs" / "dk_wire" / "PGA_DKWire_Odense_162_7.json",
+    PROJECT_DIR / "configs" / "dk_gantry" / "PGA_DKGantry_Fe.json",
 ]
 
 OPERATIONS_DIR = PROJECT_DIR / "blender_operations"
@@ -57,6 +57,7 @@ def run_operations_from_config(config_file_path):
             continue
         op_type = op_data.get("operation_type")
         parameters = op_data.get("parameters", {})
+        parameters["_project_dir"] = PROJECT_DIR
         if not op_type:
             print(f"Skipping operation due to missing 'operation_type': {op_data}")
             continue

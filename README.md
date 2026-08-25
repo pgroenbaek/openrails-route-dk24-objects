@@ -14,7 +14,8 @@ Blender scripts, models, and textures for the [Denmark 2024 Open Rails route](ht
 
 ### Prerequisites
 
-- Blender 4.2+
+- Blender 4.3-ish
+    - with [Blender_MSTS_ORTS_Exporter](https://github.com/pwillard/Blender_MSTS_ORTS_Exporter ) installed as an add-on.
 - GIMP 2.x-ish
 
 ### Opening creative assets
