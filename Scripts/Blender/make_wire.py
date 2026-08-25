@@ -136,6 +136,60 @@ def get_collection(collection, name):
     return None
 
 
+def link_object_to_lod_collection(obj, lod_distance):
+    """
+    Links an object to the appropriate LOD collection based on the distance level.
+
+    Args:
+        obj (bpy.types.Object): Blender object to link.
+        lod_distance (float): LOD distance in meters.
+    """
+    main_collection = get_collection(bpy.context.scene.collection, "MAIN")
+    if main_collection is None:
+        main_collection = bpy.data.collections.new("MAIN")
+        bpy.context.scene.collection.children.link(main_collection)
+    dlevel_collection_name = f"MAIN_{int(lod_distance):04d}"
+    dlevel_collection = get_collection(main_collection, dlevel_collection_name)
+    if dlevel_collection is None:
+        dlevel_collection = bpy.data.collections.new(dlevel_collection_name)
+        main_collection.children.link(dlevel_collection)
+    dlevel_collection.objects.link(obj)
+
+
+def set_exporter_texture_name(material, texture_name):
+    """
+    Sets the texture name used for a material with the MSTS/ORTS exporter if
+    it is not already set.
+
+    Args:
+        material (bpy.types.Material): Blender material to configure.
+        texture_name (str): Texture name to use for the material.
+    """
+    if hasattr(material, "msts") and hasattr(material.msts, "BaseColorFilepath"):
+        if not material.msts.BaseColorFilepath:
+            material.msts.BaseColorFilepath = texture_name
+
+
+def assign_material(obj, material_name):
+    """
+    Assigns a material to an object's mesh. The material is created if it
+    does not already exist.
+
+    Args:
+        obj (bpy.types.Object): Blender object receiving the material.
+        material_name (str): Name of the material to create or retrieve.
+
+    Returns:
+        bpy.types.Material: The assigned material.
+    """
+    material = bpy.data.materials.get(material_name)
+    if material is None:
+        material = bpy.data.materials.new(material_name)
+    if material.name not in obj.data.materials:
+        obj.data.materials.append(material)
+    return material
+
+
 def calculate_blender_coordinates(position, tile_coords):
     """
     Calculates Blender coordinates based on position, tile coordinates, and a reference point.
@@ -390,26 +444,10 @@ def build_wire(name, wire_attachment_points):
                 ))
     mesh = bpy.data.meshes.new(f"{name}_{WIRE_NAME}")
     obj = bpy.data.objects.new(f"{name}_{WIRE_NAME}", mesh)
-    main_collection = get_collection(bpy.context.scene.collection, "MAIN")
-    if main_collection is None:
-        main_collection = bpy.data.collections.new("MAIN")
-        bpy.context.scene.collection.children.link(main_collection)
-    dlevel_collection_name = f"MAIN_{int(LOD_DISTANCE_METERS):04d}"
-    dlevel_collection = get_collection(main_collection, dlevel_collection_name)
-    if dlevel_collection is None:
-        dlevel_collection = bpy.data.collections.new(dlevel_collection_name)
-        main_collection.children.link(dlevel_collection)
-    dlevel_collection.objects.link(obj)
-    material = bpy.data.materials.get(MATERIAL_NAME)
-    if material is None:
-        material = bpy.data.materials.new(MATERIAL_NAME)
-    if material.name not in obj.data.materials:
-        obj.data.materials.append(material)
-    if hasattr(material, "msts"):
-        if hasattr(material.msts, "BaseColorFilepath"):
-            if material.msts.BaseColorFilepath is None or material.msts.BaseColorFilepath == '':
-                material.msts.BaseColorFilepath = MATERIAL_MSTS_TEXTURE_NAME
+    link_object_to_lod_collection(obj, LOD_DISTANCE_METERS)
+    material = assign_material(obj, MATERIAL_NAME)
     material_index = obj.data.materials.find(material.name)
+    set_exporter_texture_name(material, MATERIAL_MSTS_TEXTURE_NAME)
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
     bpy.context.view_layer.objects.active = obj

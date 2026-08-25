@@ -23,7 +23,7 @@ Any `.xcf` and `.blend` files can be opened using GIMP and Blender respectively.
 
 ### Running the Python scripts
 
-Python scripts found within the [/Scripts](/Scripts) folder can be run pasting them into GIMP's and Blender's scripting consoles.
+Python scripts found within the [/Scripts](/Scripts) folder can be run by pasting them into GIMP's and Blender's scripting consoles.
 
 ## License
 
