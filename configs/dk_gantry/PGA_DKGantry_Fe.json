@@ -12,7 +12,7 @@
     {
         "operation_type": "export_s",
         "parameters": {
-            "export_path": "./dist/dk_gantry",
+            "export_path": "./dist/dk_gantry/shapes",
             "shape_name": "PGA_DKGantry_Fe"
         }
     },
@@ -20,8 +20,35 @@
         "operation_type": "export_sd",
         "parameters": {
             "collection_name": "MAIN_0400",
-            "export_path": "./dist/dk_gantry",
+            "export_path": "./dist/dk_gantry/shapes",
             "shape_name": "PGA_DKGantry_Fe"
-      }
+        }
+    },
+    {
+        "operation_type": "process_image_gimp",
+        "parameters": {
+            "input_file": "./gimp_textures/dk_gantry/PGA_DKGantry_Fe.xcf",
+            "gimp_operations": [ 
+                {
+                    "script_name": "export_image_to_png.py",
+                    "function_name": "python-fu-export-image-to-png",
+                    "args": {
+                        "output_path": "./dist/dk_gantry/textures/PGA_DKGantry_Fe.png",
+                        "png_compression": 9
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "operation_type": "process_image_aceit",
+        "parameters": {
+            "aceit_path": "/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
+            "png_path": "./dist/dk_gantry/textures/PGA_DKGantry_Fe.png",
+            "extra_params": [
+                "-q"
+            ],
+            "remove_png": true
+        }
     }
 ]

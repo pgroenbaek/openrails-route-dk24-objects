@@ -1,22 +1,25 @@
 
 # Denmark 2024 objects
 
-[![Blender 4.2](https://img.shields.io/badge/version-4.2-orange?style=flat&logo=blender&logoColor=%23ffffff&label=Blender&color=%23e87d0d)](https://blender.org/)
-[![Python 3.7+](https://img.shields.io/badge/Python-3.7%2B-blue?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Blender 4.3.2](https://img.shields.io/badge/version-4.3.2-orange?style=flat&logo=blender&logoColor=%23ffffff&label=Blender&color=%23e87d0d)](https://blender.org/)
 [![License GNU GPL v3](https://img.shields.io/badge/License-%20%20GNU%20GPL%20v3%20-lightgrey?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NDAgNTEyIj4KICA8IS0tIEZvbnQgQXdlc29tZSBGcmVlIDYuNy4yIGJ5IEBmb250YXdlc29tZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tIExpY2Vuc2UgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbS9saWNlbnNlL2ZyZWUgQ29weXJpZ2h0IDIwMjUgRm9udGljb25zLCBJbmMuIC0tPgogIDxwYXRoIGZpbGw9IndoaXRlIiBkPSJNMzg0IDMybDEyOCAwYzE3LjcgMCAzMiAxNC4zIDMyIDMycy0xNC4zIDMyLTMyIDMyTDM5OC40IDk2Yy01LjIgMjUuOC0yMi45IDQ3LjEtNDYuNCA1Ny4zTDM1MiA0NDhsMTYwIDBjMTcuNyAwIDMyIDE0LjMgMzIgMzJzLTE0LjMgMzItMzIgMzJsLTE5MiAwLTE5MiAwYy0xNy43IDAtMzItMTQuMy0zMi0zMnMxNC4zLTMyIDMyLTMybDE2MCAwIDAtMjk0LjdjLTIzLjUtMTAuMy00MS4yLTMxLjYtNDYuNC01Ny4zTDEyOCA5NmMtMTcuNyAwLTMyLTE0LjMtMzItMzJzMTQuMy0zMiAzMi0zMmwxMjggMGMxNC42LTE5LjQgMzcuOC0zMiA2NC0zMnM0OS40IDEyLjYgNjQgMzJ6bTU1LjYgMjg4bDE0NC45IDBMNTEyIDE5NS44IDQzOS42IDMyMHpNNTEyIDQxNmMtNjIuOSAwLTExNS4yLTM0LTEyNi03OC45Yy0yLjYtMTEgMS0yMi4zIDYuNy0zMi4xbDk1LjItMTYzLjJjNS04LjYgMTQuMi0xMy44IDI0LjEtMTMuOHMxOS4xIDUuMyAyNC4xIDEzLjhsOTUuMiAxNjMuMmM1LjcgOS44IDkuMyAyMS4xIDYuNyAzMi4xQzYyNy4yIDM4MiA1NzQuOSA0MTYgNTEyIDQxNnpNMTI2LjggMTk1LjhMNTQuNCAzMjBsMTQ0LjkgMEwxMjYuOCAxOTUuOHpNLjkgMzM3LjFjLTIuNi0xMSAxLTIyLjMgNi43LTMyLjFsOTUuMi0xNjMuMmM1LTguNiAxNC4yLTEzLjggMjQuMS0xMy44czE5LjEgNS4zIDI0LjEgMTMuOGw5NS4yIDE2My4yYzUuNyA5LjggOS4zIDIxLjEgNi43IDMyLjFDMjQyIDM4MiAxODkuNyA0MTYgMTI2LjggNDE2UzExLjcgMzgyIC45IDMzNy4xeiIvPgo8L3N2Zz4=&logoColor=%23ffffff)](/LICENSE)
 [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
 
 ![Denmark 2024](./DK24_small.png)
 
-Blender scripts, models, and textures for the [Denmark 2024 Open Rails route](https://github.com/pgroenbaek/openrails-route-dk24).
+Blender Python scripts, models, and textures for the [Denmark 2024 Open Rails route](https://github.com/pgroenbaek/openrails-route-dk24).
 
 ## Usage
 
 ### Prerequisites
 
+Programs required in PATH:
 - Blender 4.3-ish
-    - with [Blender_MSTS_ORTS_Exporter](https://github.com/pwillard/Blender_MSTS_ORTS_Exporter ) installed as an add-on.
-- GIMP 2.x-ish
+    - with [Blender_MSTS_ORTS_Exporter v4.8.1](https://github.com/pwillard/Blender_MSTS_ORTS_Exporter/releases/tag/4.8.1 ) installed as an add-on.
+- GIMP 2.10-ish
+- [AceIt](https://www.trainsim.com/forums/filelib-search-fileid?fid=67904)
+
+Some scripts require the route data to be available somewhere on disk. You can get the world files, TDB/RBD, and so forth [here](https://github.com/pgroenbaek/openrails-route-dk24).
 
 ### Opening creative assets
 
@@ -26,26 +29,66 @@ Any `.xcf` and `.blend` files can be opened using GIMP and Blender respectively.
 
 #### Via Blender's Scripting Console
 
-Configure the `CONFIGS` list in `run_operations.py` by adding config files to it.
+Configure the `CONFIG_FILES` list in `run_operations.py` by adding config file paths to it.
 
-Then paste that entire script into Blender's scripting console to create those objects/textures.
+Then paste the entire `run_operations.py` script into Blender's scripting console to create those objects/textures. It will automatically import any operation scripts needed based on the contents of the config files.
 
 
-#### Via Blender Headless Mode
+#### Via Blender in Terminal
 
 Running a single config:
 
 ```bash
-blender -b -P run_operations.py -- --config configs/dk_wire/PGA_DKWire_Odense_162_7.json
+blender -P run_operations.py -- --config configs/dk_wire/PGA_DKWire_Odense_162_7.json
 ```
 
 Running multiple configs:
 
 ```bash
-blender -b -P run_operations.py -- \
+blender -P run_operations.py -- \
     --config configs/dk_wire/PGA_DKWire_Odense_162_7.json \
     --config configs/dk_wire/PGA_DKWire_Odense_163_7.json
 ```
+
+#### Via Blender in Terminal without UI
+
+Adding the `-b` option allows running Blender in background mode (i.e. without UI)
+
+```bash
+blender -b -P run_operations.py -- --config configs/dk_wire/PGA_DKWire_Odense_162_7.json
+```
+
+### Getting AceIt to Work on Linux
+
+First install Wine:
+
+```bash
+dpkg --add-architecture i386
+apt update
+apt install wine64 wine32 winetricks
+```
+
+Then install the required Wine components via Winetricks:
+
+```bash
+export WINEPREFIX="$HOME/.wine"
+export WINEARCH=win64
+
+wineboot -u
+
+winetricks vb6run
+winetricks comctl32ocx
+winetricks comdlg32ocx
+winetricks dx8vb
+```
+
+Then AceIt can be run via Wine:
+
+```bash
+wine path/to/aceit.exe
+```
+
+The `process_image_aceit.py` script will automatically try to use Wine on Linux.
 
 ## License
 

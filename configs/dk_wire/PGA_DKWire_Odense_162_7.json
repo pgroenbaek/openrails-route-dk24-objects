@@ -102,5 +102,20 @@
                 ]
             }
         }
+    },
+    {
+        "operation_type": "export_s",
+        "parameters": {
+            "export_path": "./dist/dk_wire/shapes",
+            "shape_name": "PGA_DKWire_Odense_162_7"
+        }
+    },
+    {
+        "operation_type": "export_sd",
+        "parameters": {
+            "collection_name": "MAIN_0500",
+            "export_path": "./dist/dk_wire/shapes",
+            "shape_name": "PGA_DKWire_Odense_162_7"
+        }
     }
 ]

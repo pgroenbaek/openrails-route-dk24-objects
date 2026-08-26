@@ -1,0 +1,62 @@
+[
+    {
+        "operation_type": "process_image_gimp",
+        "parameters": {
+            "input_file": "images/template.xcf",
+            "output_file": "output/dummy_output_for_multi_export.png",
+            "gimp_operations": [
+                {
+                    "script_name": "change_text_layer_and_export_png.py",
+                    "function_name": "python-fu-change-text-layer-and-export-png",
+                    "args": {
+                        "input_xcf_path": "images/template.xcf",
+                        "output_dummy_path": "",
+                        "base_output_dir": "output/gimp_exports",
+                        "export_config": {
+                            "groups": [
+                                {
+                                    "prefix": "DK-Gantry-Fe",
+                                    "start": 1,
+                                    "stop": 3,
+                                    "step": 1,
+                                    "number_format": "03d"
+                                }
+                            ],
+                            "output_filename_pattern": "{prefix}-{number:03d}.png",
+                            "text_layers_config": [
+                                {
+                                    "text_layer_name_pattern": "Title Text",
+                                    "new_text_pattern": "Gantry {number:03d}"
+                                },
+                                {
+                                    "text_layer_name_pattern": "Subtitle Text",
+                                    "new_text_pattern": "Export {number:03d} Example"
+                                }
+                            ]
+                        },
+                        "png_compression": 9
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "operation_type": "process_image_gimp",
+        "parameters": {
+            "input_file": "images/template.xcf",
+            "output_file": "output/modified.xcf",
+            "gimp_operations": [
+                {
+                    "script_name": "change_text_layer.py",
+                    "function_name": "python-fu-change-text-layer",
+                    "args": {
+                        "input_path": "images/template.xcf",
+                        "output_path": "output/modified.xcf",
+                        "text_layer_name": "Title Text",
+                        "new_text": "Hello World"
+                    }
+                }
+            ]
+        }
+    }
+]

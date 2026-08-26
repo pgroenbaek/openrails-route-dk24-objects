@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 Copyright (C) 2026 Peter Grønbæk Andersen <peter@grnbk.io>
 
@@ -15,11 +18,19 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+# This is the Blender operation runner.
+#
+# It reads the human-readable JSON configuration and dispatches
+# the requested Blender operation scripts with their parameters.
+# It can be run from the command line with Blender or directly
+# from Blender's Scripting Console.
+
 import bpy
 import json
 import sys
 import argparse
 import importlib
+import addon_utils
 from pathlib import Path
 from mathutils import Vector
 
@@ -27,13 +38,27 @@ from mathutils import Vector
 PROJECT_DIR = Path(r"/media/peter/T7 Shield/Repos/personal/openrails-route-dk24-objects")
 
 CONFIG_FILES = [
-    PROJECT_DIR / "configs" / "dk_gantry" / "PGA_DKGantry_Fe.json",
+    #PROJECT_DIR / "configs" / "dk_wire" / "PGA_DKWire_Odense_162_7.json",
 ]
 
 OPERATIONS_DIR = PROJECT_DIR / "blender_operations"
 
 
 def run_operations_from_config(config_file_path):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_module = "io_export_mstsexporter_4-8-2"
+    module = next(
+        (addon for addon in addon_utils.modules()
+        if addon.__name__ == addon_module),
+        None
+    )
+    if module is None:
+        raise RuntimeError(
+            f"Required addon '{addon_module}' does not exist\n"
+            "\tDownload it from GitHub: "
+            "https://github.com/pwillard/Blender_MSTS_ORTS_Exporter/releases/tag/4.8.1"
+        )
+    bpy.ops.preferences.addon_enable(module=addon_module)
     config_file_path = Path(config_file_path).resolve()
     operations_dir = Path(OPERATIONS_DIR).resolve()
     if str(operations_dir) not in sys.path:
@@ -91,7 +116,11 @@ def parse_arguments():
         action="append",
         help="Path to a JSON configuration file. Can be specified multiple times."
     )
-    return parser.parse_args()
+    if "--" in sys.argv:
+        script_args = sys.argv[sys.argv.index("--") + 1:]
+    else:
+        script_args = []
+    return parser.parse_args(script_args)
 
 
 if __name__ == "__main__":

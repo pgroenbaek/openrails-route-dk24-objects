@@ -1,3 +1,30 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Copyright (C) 2026 Peter Grønbæk Andersen <peter@grnbk.io>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
+
+# This is a Blender Python script.
+#
+# It is called by `run_operations.py`, which reads the human-readable
+# JSON configuration and dispatches the requested Blender operations.
+# The `run_operations.py` script can also be run directly from Blender's
+# Scripting Console configured with a set of config files.
+
 import os
 import bpy
 
@@ -14,34 +41,6 @@ def ensure_directory_exists(path):
         path (str): Directory path to check or create.
     """
     os.makedirs(path, exist_ok=True)
-
-
-def replace_text_in_file(file_path, search_text, replace_text):
-    """
-    Replaces all occurrences of text in a UTF-16 encoded file.
-
-    Args:
-        file_path (str): Path to the file to modify.
-        search_text (str): Text to search for.
-        replace_text (str): Text to replace it with.
-    """
-    with open(file_path, "r", encoding="utf-16") as file:
-        file_text = file.read()
-
-    file_text = file_text.replace(search_text, replace_text)
-
-    with open(file_path, "w", encoding="utf-16") as file:
-        file.write(file_text)
-
-
-def export_s_file(file_path):
-    """
-    Exports an S file using Blender's MSTS exporter.
-
-    Args:
-        file_path (str): Destination path for the S file.
-    """
-    bpy.ops.export.msts_s(filepath=file_path)
 
 
 def sanitize_value(value, replacements):
@@ -102,6 +101,34 @@ def build_exports(params):
         return exports
 
     raise ValueError("No exports, values, or groups specified.")
+
+
+def replace_text_in_file(file_path, search_text, replace_text):
+    """
+    Replaces all occurrences of text in a UTF-16 encoded file.
+
+    Args:
+        file_path (str): Path to the file to modify.
+        search_text (str): Text to search for.
+        replace_text (str): Text to replace it with.
+    """
+    with open(file_path, "r", encoding="utf-16") as file:
+        file_text = file.read()
+
+    file_text = file_text.replace(search_text, replace_text)
+
+    with open(file_path, "w", encoding="utf-16") as file:
+        file.write(file_text)
+
+
+def export_s_file(file_path):
+    """
+    Exports an S file using Blender's MSTS exporter.
+
+    Args:
+        file_path (str): Destination path for the S file.
+    """
+    bpy.ops.export.msts_s(filepath=file_path)
 
 
 def perform_operation(params):
@@ -170,4 +197,3 @@ def perform_operation(params):
                 f"{texture_name}.ace"
             )
 
-        print(f"Exported S file: {file_path}")

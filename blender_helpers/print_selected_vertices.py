@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 Copyright (C) 2026 Peter Grønbæk Andersen <peter@grnbk.io>
 
@@ -14,6 +17,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
+
+# This is a Blender Python script.
+#
+# Run it by pasting it into Blender's Scripting Console
 
 import bpy
 
