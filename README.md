@@ -13,13 +13,18 @@ Blender Python scripts, models, and textures for the [Denmark 2024 Open Rails ro
 
 ### Prerequisites
 
-Programs required in PATH:
+Programs required to be present in PATH:
 - Blender 4.3-ish
     - with [Blender_MSTS_ORTS_Exporter v4.8.1](https://github.com/pwillard/Blender_MSTS_ORTS_Exporter/releases/tag/4.8.1 ) installed as an add-on.
 - GIMP 2.10-ish
-- [AceIt](https://www.trainsim.com/forums/filelib-search-fileid?fid=67904)
 
-Some scripts require the route data to be available somewhere on disk. You can get the world files, TDB/RBD, and so forth [here](https://github.com/pgroenbaek/openrails-route-dk24).
+Other programs required:
+- [AceIt](https://www.trainsim.com/forums/filelib-search-fileid?fid=67904)
+- ffeditc_unicode.exe (find it within an MSTS installation)
+
+Some operations, like `make_wire_overhead.py`, require the route data to be available somewhere on disk. You can get the world files, tdb/rdb, and so forth [here](https://github.com/pgroenbaek/openrails-route-dk24).
+
+Whenever paths to the other programs and the route data are needed they are specified within the config files rather than be required to be present in PATH.
 
 ### Opening creative assets
 
@@ -27,14 +32,14 @@ Any `.xcf` and `.blend` files can be opened using GIMP and Blender respectively.
 
 ### Running the Python scripts
 
-#### Via Blender's Scripting Console
+#### Via Blender's scripting console
 
 Configure the `CONFIG_FILES` list in `run_operations.py` by adding config file paths to it.
 
 Then paste the entire `run_operations.py` script into Blender's scripting console to create those objects/textures. It will automatically import any operation scripts needed based on the contents of the config files.
 
 
-#### Via Blender in Terminal
+#### Via Blender in terminal
 
 Running a single config:
 
@@ -50,7 +55,7 @@ blender -P run_operations.py -- \
     --config configs/dk_wire/PGA_DKWire_Odense_163_7.json
 ```
 
-#### Via Blender in Terminal without UI
+#### Via Blender in terminal without UI
 
 Adding the `-b` option allows running Blender in background mode (i.e. without UI)
 
@@ -58,7 +63,7 @@ Adding the `-b` option allows running Blender in background mode (i.e. without U
 blender -b -P run_operations.py -- --config configs/dk_wire/PGA_DKWire_Odense_162_7.json
 ```
 
-### Getting AceIt to Work on Linux
+### Making AceIt and `ffeditc_unicode.exe` work on Linux
 
 First install Wine:
 

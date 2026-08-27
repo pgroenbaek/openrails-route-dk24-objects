@@ -20,10 +20,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# It is called by `run_operations.py`, which reads the human-readable
-# JSON configuration and dispatches the requested Blender operations.
-# The `run_operations.py` script can also be run directly from Blender's
-# Scripting Console configured with a set of config files.
+# It is called by `run_operations.py`, which reads the JSON configuration
+# and dispatches the requested Blender operations. The `run_operations.py`
+# script can also be run directly from Blender's Scripting Console
+# configured with a set of config files.
 
 import json
 import subprocess

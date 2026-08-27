@@ -104,18 +104,25 @@
         }
     },
     {
-        "operation_type": "export_s",
+        "operation_type": "export_sd",
         "parameters": {
-            "export_path": "./dist/dk_wire/shapes",
+            "collection_name": "MAIN_0500",
+            "export_path": "dist/dk_wire/shapes",
             "shape_name": "PGA_DKWire_Odense_162_7"
         }
     },
     {
-        "operation_type": "export_sd",
+        "operation_type": "export_s",
         "parameters": {
-            "collection_name": "MAIN_0500",
-            "export_path": "./dist/dk_wire/shapes",
+            "export_path": "dist/dk_wire/shapes",
             "shape_name": "PGA_DKWire_Odense_162_7"
+        }
+    },
+    {
+        "operation_type": "compress_s_ffeditc",
+        "parameters": {
+            "ffeditc_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
+            "file_path": "dist/dk_wire/shapes/PGA_DKWire_Odense_162_7.s"
         }
     }
 ]
