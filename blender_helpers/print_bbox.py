@@ -20,7 +20,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# Run it by pasting it into Blender's Scripting Console
+# Run it by pasting it into Blender's scripting console
 
 import bpy
 from bpy import context

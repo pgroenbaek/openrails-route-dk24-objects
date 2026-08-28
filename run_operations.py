@@ -68,14 +68,14 @@ def run_operations_from_config(config_file_path):
             operations_config = json.load(f)
     except FileNotFoundError:
         print(f"Error: Configuration file not found at {config_file_path}")
-        return False
+        return (False, "Config File Not Found")
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON in {config_file_path}")
         print(f"Line {e.lineno}, column {e.colno}: {e.msg}")
-        return False
+        return (False, "Config JSON Error")
     if not isinstance(operations_config, list):
         print("Error: Configuration file must contain a JSON list.")
-        return False
+        return (False, "Config Format Error")
     for op_data in operations_config:
         if not isinstance(op_data, dict):
             print(f"Skipping invalid operation: {op_data}")
@@ -100,13 +100,16 @@ def run_operations_from_config(config_file_path):
         except ModuleNotFoundError as e:
             print(f"Error: Operation module '{module_name}.py' not found.")
             print(f"Details: {e}")
+            return (False, op_type)
         except AttributeError as e:
             print(f"Error calling operation '{op_type}': {e}")
+            return (False, op_type)
         except Exception as e:
             print(f"An unexpected error occurred during operation '{op_type}': {e}")
             import traceback
             traceback.print_exc()
-    return True
+            return (False, op_type)
+    return (True, None)
 
 
 def parse_arguments():
@@ -129,24 +132,36 @@ if __name__ == "__main__":
         config_files = [Path(config) for config in args.config]
     else:
         config_files = CONFIG_FILES
+    failed_configs = []
     print("=" * 60)
     print("Blender Operation Runner")
     print("=" * 60)
     print(f"Project directory: {PROJECT_DIR}")
     print(f"Operations directory: {OPERATIONS_DIR}")
     print(f"Blender version: {bpy.app.version_string}")
-    print(f"Config files: {len(config_files)}")
+    print(f"Config files to process: {len(config_files)}")
     print("=" * 60)
     for index, config_file in enumerate(config_files, start=1):
         print("\n" + "=" * 60)
         print(f"CONFIG {index}/{len(config_files)}")
         print(f"Running: {config_file}")
         print("=" * 60)
-        success = run_operations_from_config(config_file)
-        if not success:
-            print(f"Config failed: {config_file}")
+        success_status, failed_step = run_operations_from_config(config_file)
+        if not success_status:
+            failed_configs.append((config_file, failed_step))
+            print(f"Config FAILED: {config_file} (failed at step: {failed_step})")
         else:
-            print(f"Config completed: {config_file}")
+            print(f"Config COMPLETED: {config_file}")
     print("\n" + "=" * 60)
     print("All config files processed.")
-    print("=" * 60)
+    if failed_configs:
+        print("\n" + "=" * 60)
+        print("SUMMARY OF FAILED CONFIGURATIONS:")
+        print("=" * 60)
+        for config_path, failed_step_name in failed_configs:
+            print(f"- {config_path} (failed at step: {failed_step_name})")
+        print("=" * 60)
+    else:
+        print("\n" + "=" * 60)
+        print("All configurations ran successfully!")
+        print("=" * 60)
