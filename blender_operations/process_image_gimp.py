@@ -23,7 +23,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 # It is called by `run_operations.py`, which reads the JSON configuration
 # and dispatches the requested Blender operations. The `run_operations.py`
 # script can also be run directly from Blender's scripting console
-# configured with a set of config files and pasting it in.
+# configured with a set of config files by pasting it in.
 
 import json
 import subprocess

@@ -281,7 +281,6 @@ def python_fu_change_text_layer_and_export_png(
 
         for config in text_layers_config:
             text_layer_name_pattern = config.get("text_layer_name_pattern")
-
             new_text_pattern = config.get("new_text_pattern")
 
             if not text_layer_name_pattern or not new_text_pattern:

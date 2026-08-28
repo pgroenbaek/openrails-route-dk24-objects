@@ -87,13 +87,7 @@ winetricks comdlg32ocx
 winetricks dx8vb
 ```
 
-Then AceIt can be run via Wine:
-
-```bash
-wine path/to/aceit.exe
-```
-
-The `process_image_aceit.py` script will automatically try to use Wine on Linux.
+The scripts that use these programs will automatically try to use Wine on Linux.
 
 ## License
 
