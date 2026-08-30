@@ -20,10 +20,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is the Blender operation runner.
 #
-# It reads the human-readable JSON configuration and dispatches
-# the requested Blender operation scripts with their parameters.
-# It can be run from the command line with Blender or directly
-# from Blender's Scripting Console.
+# It reads the JSON configuration and dispatches the requested Blender
+# operation scripts with their parameters. It can be run from the command
+# line with Blender or directly from Blender's scripting console.
 
 import bpy
 import json

@@ -138,7 +138,7 @@ def perform_operation(params):
     Args:
         params (dict): Export configuration.
 
-    Expected keys include:
+    Expected keys:
         - "export_path" (str): Directory where S files are written.
         - "shape_name" (str, optional): Name of a single shape to export.
         - "exports" (list, optional): Explicit list of export variable dictionaries.

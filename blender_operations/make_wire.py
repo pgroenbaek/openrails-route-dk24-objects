@@ -498,26 +498,40 @@ def build_wire(name, wire_attachment_points, wire_name, wire_span_resolution, wi
 
 def perform_operation(params):
     """
-    Blender operation to generate return wires between configured mast attachment points.
+    Generates wires between configured mast attachment points.
 
     Args:
-        params (dict): A dictionary containing configuration parameters for the operation.
-                       Expected keys include:
-                       - "material_name" (str)
-                       - "material_msts_texture_name" (str)
-                       - "lod_distance_meters" (float)
-                       - "wire_name" (str)
-                       - "wire_span_resolution" (int)
-                       - "wire_thickness" (float)
-                       - "wire_sag_ratio" (float)
-                       - "world_up" (list/Vector)
-                       - "world_folder" (str)
-                       - "tile_size" (int)
-                       - "reference_position" (list/Vector)
-                       - "reference_tile" (list/Vector)
-                       - "profile_wire" (list)
-                       - "mast_types" (dict)
-                       - "masts" (dict)
+        params (dict): Wire generation configuration.
+
+    Expected keys:
+        - "material_name" (str, optional): Material name used for the generated
+          wire.
+        - "material_msts_texture_name" (str, optional): MSTS texture name
+          associated with the generated material.
+        - "lod_distance_meters" (float, optional): Distance in meters used for
+          level-of-detail generation.
+        - "wire_name" (str, optional): Name assigned to the generated wire.
+        - "wire_span_resolution" (int, optional): Resolution used when
+          generating the wire span.
+        - "wire_thickness" (float, optional): Thickness of the generated wire.
+        - "wire_sag_ratio" (float, optional): Ratio used to determine the sag
+          of the generated wire.
+        - "world_up" (list or Vector, optional): World-up direction used when
+          orienting the generated wire.
+        - "world_folder" (str, optional): Path to the world folder containing
+          mast configuration data.
+        - "tile_size" (int, optional): Size of a world tile used when
+          calculating mast positions.
+        - "reference_position" (list or Vector, optional): Reference position
+          used when calculating mast positions.
+        - "reference_tile" (list or Vector, optional): Reference tile used when
+          calculating mast positions.
+        - "profile_wire" (list, optional): Profile geometry used to generate
+          the wire.
+        - "mast_types" (dict, optional): Mast type configuration used to
+          calculate wire attachment points.
+        - "masts" (dict): Mast configuration defining the mast groups
+          for which return wires are generated.
     """
     material_name = params.get("material_name", MATERIAL_NAME)
     material_msts_texture_name = params.get("material_msts_texture_name", MATERIAL_MSTS_TEXTURE_NAME)

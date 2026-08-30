@@ -209,7 +209,7 @@ def perform_operation(params):
     Args:
         params (dict): Export configuration.
 
-    Expected keys include:
+    Expected keys:
         - "file_path" (str, optional): Path for a single SD file.
         - "shape_name" (str, optional): Shape name for a single export.
         - "collection_name" (str, optional): Collection used for the bounding box.

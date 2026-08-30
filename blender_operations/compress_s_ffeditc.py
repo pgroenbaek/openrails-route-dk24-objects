@@ -153,7 +153,7 @@ def perform_operation(params):
     Args:
         params (dict): Compression configuration.
 
-    Expected keys include:
+    Expected keys:
         - "ffeditc_path" (str): Path to the ffeditc_unicode.exe executable.
         - "export_path" (str, optional): Directory to use when resolving
           relative file paths or for output.

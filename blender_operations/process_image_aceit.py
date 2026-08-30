@@ -129,7 +129,7 @@ def perform_operation(params):
     Args:
         params (dict): AceIt configuration.
 
-    Expected keys include:
+    Expected keys:
         - "aceit_path" (str): Path to the AceIt executable.
         - "export_path" (str, optional): Directory to use when resolving
           relative image paths.

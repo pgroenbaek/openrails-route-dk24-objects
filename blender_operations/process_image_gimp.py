@@ -450,24 +450,21 @@ def run_gimp_scripts(parameters):
 
 def perform_operation(parameters):
     """
-    Performs GIMP image processing.
+    Performs GIMP image processing using the configured GIMP operations.
 
     Args:
-        parameters (dict):
-            _project_dir (Path):
-                Project root directory supplied by run_operations.py.
+        parameters (dict): GIMP image processing configuration.
 
-            input_file (str):
-                Input image path relative to the project directory.
-
-            output_file (str, optional):
-                Output path relative to the project directory.
-
-            gimp_executable_path (str, optional):
-                GIMP executable path.
-
-            gimp_operations (list):
-                GIMP operation definitions.
+    Expected keys:
+        - "_project_dir" (Path): Project root directory supplied by the
+          operation runner.
+        - "input_file" (str): Input image path relative to the project
+          directory.
+        - "output_file" (str, optional): Output image path relative to the
+          project directory.
+        - "gimp_executable_path" (str, optional): Path to the GIMP executable.
+        - "gimp_operations" (list, optional): GIMP operation definitions to
+          execute on the input image.
     """
     project_dir = Path(parameters["_project_dir"]).resolve()
 

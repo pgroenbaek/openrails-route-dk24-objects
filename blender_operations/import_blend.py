@@ -281,27 +281,19 @@ def perform_operation(params):
     Imports and transforms a collection tree from a Blender file.
 
     Args:
-        params (dict): Operation parameters.
+        params (dict): Import and transformation configuration.
 
-            file_path (str):
-                Path to the .blend file. Relative paths are resolved against
-                `PROJECT_DIR` in `run_operations.py`.
-
-            collection_name (str):
-                Root collection to import. Only this collection and its
-                descendants are imported.
-
-            location (list, optional):
-                Translation as [x, y, z].
-
-            rotation (list, optional):
-                Euler XYZ rotation in radians as [x, y, z].
-
-            scale (list, optional):
-                Scale as [x, y, z].
-
-            _project_dir (Path):
-                Project root directory supplied by the operation runner.
+    Expected keys:
+        - "file_path" (str): Path to the .blend file. Relative paths are
+          resolved against the project directory.
+        - "collection_name" (str): Root collection to import. Only this
+          collection and its descendants are imported.
+        - "location" (list, optional): Translation as [x, y, z].
+        - "rotation" (list, optional): Euler XYZ rotation in radians as
+          [x, y, z].
+        - "scale" (list, optional): Scale as [x, y, z].
+        - "_project_dir" (Path): Project root directory used to resolve
+          relative file paths.
     """
     project_dir = Path(params["_project_dir"])
     file_path = Path(params["file_path"])

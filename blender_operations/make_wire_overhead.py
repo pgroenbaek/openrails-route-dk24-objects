@@ -47,12 +47,8 @@ CONNECTOR_COLLAR_LENGTH = 0.03
 CONNECTOR_NUM_SIDES = 3
 
 WORLD_UP = Vector((0, 0, 1))
-WORLD_FOLDER = "/media/peter/T7 Shield/ORTS/Content/PGA DK24/ROUTES/OR_DK24/WORLD"
 
 TILE_SIZE = 2048
-
-REFERENCE_POSITION = Vector((-874.908, 14.4113, -828.282))
-REFERENCE_TILE = Vector((-5656, 15119))
 
 PROFILE_TOP_WIRE = [
     (Vector((0.0000, -0.0100)), Vector((0.0, 0.0273))),
@@ -227,6 +223,7 @@ def read_mast_data(masts_config, world_folder):
             tiles_to_uids[key] = set()
 
         tiles_to_uids[key].add(uid)
+    
     tile_data = {}
 
     for tile_coords in tiles_to_uids:
@@ -376,6 +373,7 @@ def calculate_mast_wire_positions(masts_config, mast_types, tile_size, reference
         mast_forward = mast_rotation @ Vector((1, 0, 0))
         mast_right = mast_rotation @ Vector((0, 1, 0))
         mast_up = mast_rotation @ Vector((0, 0, 1))
+
         top_local = Vector((
             mast_definition["top_offset"].y,
             mast_definition["top_offset"].x,
@@ -386,6 +384,7 @@ def calculate_mast_wire_positions(masts_config, mast_types, tile_size, reference
             mast_definition["bottom_offset"].x,
             mast_definition["bottom_offset"].z
         ))
+
         top_point = mast_position + (
             mast_right * top_local.x +
             mast_forward * top_local.y +
@@ -396,6 +395,7 @@ def calculate_mast_wire_positions(masts_config, mast_types, tile_size, reference
             mast_forward * bottom_local.y +
             mast_up * bottom_local.z
         )
+
         top_mast_points.append(top_point)
         bottom_mast_points.append(bottom_point)
     
@@ -935,31 +935,52 @@ def build_connectors(name, top_wire_points, bottom_wire_points, lod_distance_met
 
 def perform_operation(params):
     """
-    Blender operation to generate overhead catenary wire system.
+    Generates an overhead catenary wire object from mast configuration data.
 
     Args:
-        params (dict): A dictionary containing configuration parameters for the operation.
-                        Expected keys include:
-                        - "material_name" (str)
-                        - "material_msts_texture_name" (str)
-                        - "lod_distance_meters" (float)
-                        - "top_wire_span_resolution" (int)
-                        - "top_wire_sag_clearance" (float)
-                        - "top_wire_sag_height" (float)
-                        - "connector_distance_meters" (float)
-                        - "connector_radius" (float)
-                        - "connector_collar_radius" (float, optional, defaults to connector_radius * 1.33)
-                        - "connector_collar_length" (float)
-                        - "connector_num_sides" (int)
-                        - "world_up" (list/Vector)
-                        - "world_folder" (str)
-                        - "tile_size" (int)
-                        - "reference_position" (list/Vector)
-                        - "reference_tile" (list/Vector)
-                        - "profile_top_wire" (list of lists/Vectors)
-                        - "profile_bottom_wire" (list of lists/Vectors)
-                        - "mast_types" (dict)
-                        - "masts" (dict)
+        params (dict): Catenary wire generation configuration.
+
+    Expected keys:
+        - "material_name" (str, optional): Material name used for the generated
+          catenary components.
+        - "material_msts_texture_name" (str, optional): MSTS texture name
+          associated with the generated material.
+        - "lod_distance_meters" (float, optional): Distance in meters used for
+          level-of-detail generation.
+        - "top_wire_span_resolution" (int, optional): Resolution used when
+          generating the top wire spans.
+        - "top_wire_sag_clearance" (float, optional): Clearance value used when
+          calculating top wire sag.
+        - "top_wire_sag_height" (float, optional): Height value used when
+          calculating top wire sag.
+        - "connector_distance_meters" (float, optional): Distance in meters
+          between generated connectors.
+        - "connector_radius" (float, optional): Radius of the generated
+          connectors.
+        - "connector_collar_radius" (float, optional): Radius of the connector
+          collars.
+        - "connector_collar_length" (float, optional): Length of the connector
+          collars.
+        - "connector_num_sides" (int, optional): Number of sides used to
+          generate connector geometry.
+        - "world_up" (list or Vector, optional): World-up direction used when
+          orienting generated geometry.
+        - "world_folder" (str): Path to the world folder containing mast
+          configuration data.
+        - "tile_size" (int, optional): Size of a world tile used when
+          calculating mast positions.
+        - "reference_position" (list or Vector): Reference position used when
+          calculating mast positions.
+        - "reference_tile" (list or Vector): Reference tile used when
+          calculating mast positions.
+        - "profile_top_wire" (list of lists or Vectors, optional): Profile
+          geometry used to generate the top wire.
+        - "profile_bottom_wire" (list of lists or Vectors, optional): Profile
+          geometry used to generate the bottom wire.
+        - "mast_types" (dict, optional): Mast type configuration used to
+          calculate wire positions.
+        - "masts" (dict): Mast configuration defining the mast groups
+          for which catenary wires are generated.
     """
     material_name = params.get("material_name", MATERIAL_NAME)
     material_msts_texture_name = params.get("material_msts_texture_name", MATERIAL_MSTS_TEXTURE_NAME)
@@ -974,11 +995,11 @@ def perform_operation(params):
     connector_num_sides = params.get("connector_num_sides", CONNECTOR_NUM_SIDES)
     
     world_up = params.get("world_up", WORLD_UP)
-    world_folder = params.get("world_folder", WORLD_FOLDER)
+    world_folder = params.get("world_folder")
     tile_size = params.get("tile_size", TILE_SIZE)
     
-    reference_position = params.get("reference_position", REFERENCE_POSITION)
-    reference_tile = params.get("reference_tile", REFERENCE_TILE)
+    reference_position = params.get("reference_position")
+    reference_tile = params.get("reference_tile")
 
     if not isinstance(world_up, Vector):
         world_up = Vector(world_up)
