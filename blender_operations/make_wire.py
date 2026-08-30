@@ -518,13 +518,13 @@ def perform_operation(params):
           of the generated wire.
         - "world_up" (list or Vector, optional): World-up direction used when
           orienting the generated wire.
-        - "world_folder" (str, optional): Path to the world folder containing
+        - "world_folder" (str): Path to the world folder containing
           mast configuration data.
         - "tile_size" (int, optional): Size of a world tile used when
           calculating mast positions.
-        - "reference_position" (list or Vector, optional): Reference position
+        - "reference_position" (list or Vector): Reference position
           used when calculating mast positions.
-        - "reference_tile" (list or Vector, optional): Reference tile used when
+        - "reference_tile" (list or Vector): Reference tile used when
           calculating mast positions.
         - "profile_wire" (list, optional): Profile geometry used to generate
           the wire.
@@ -542,11 +542,11 @@ def perform_operation(params):
     wire_sag_ratio = params.get("wire_sag_ratio", WIRE_SAG_RATIO)
 
     world_up = params.get("world_up", WORLD_UP)
-    world_folder = params.get("world_folder", WORLD_FOLDER)
+    world_folder = params.get("world_folder")
     tile_size = params.get("tile_size", TILE_SIZE)
 
-    reference_position = params.get("reference_position", REFERENCE_POSITION)
-    reference_tile = params.get("reference_tile", REFERENCE_TILE)
+    reference_position = params.get("reference_position")
+    reference_tile = params.get("reference_tile")
 
     if not isinstance(world_up, Vector):
         world_up = Vector(world_up)
