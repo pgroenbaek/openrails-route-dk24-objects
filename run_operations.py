@@ -18,18 +18,18 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-# This is the Blender operation runner.
+# This is a Blender Python script.
 #
 # It reads the JSON configuration and dispatches the requested Blender
 # operation scripts with their parameters. It can be run from the command
-# line with Blender or directly from Blender's scripting console.
+# line with Blender or directly from Blender's scripting console by pasting
+# in the script with `CONFIG_FILES` configured.
 
 import bpy
 import json
 import sys
 import argparse
 import importlib
-import addon_utils
 from pathlib import Path
 from mathutils import Vector
 
@@ -44,24 +44,17 @@ OPERATIONS_DIR = PROJECT_DIR / "blender_operations"
 
 
 def run_operations_from_config(config_file_path):
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    addon_module = "io_export_mstsexporter_4-8-2"
-    module = next(
-        (addon for addon in addon_utils.modules()
-        if addon.__name__ == addon_module),
-        None
-    )
-    if module is None:
-        raise RuntimeError(
-            f"Required addon '{addon_module}' does not exist\n"
-            "\tDownload it from GitHub: "
-            "https://github.com/pwillard/Blender_MSTS_ORTS_Exporter/releases/tag/4.8.1"
-        )
-    bpy.ops.preferences.addon_enable(module=addon_module)
     config_file_path = Path(config_file_path).resolve()
     operations_dir = Path(OPERATIONS_DIR).resolve()
     if str(operations_dir) not in sys.path:
         sys.path.insert(0, str(operations_dir))
+    reset_module = importlib.import_module("reset_blender")
+    reset_module = importlib.reload(reset_module)
+    reset_function = getattr(reset_module, "perform_operation", None)
+    if reset_function is None:
+        print(f"Error: Module '{module_name}.py' does not have a 'perform_operation' function.")
+        return
+    reset_function({})
     try:
         with open(config_file_path, "r", encoding="utf-8") as f:
             operations_config = json.load(f)
