@@ -1,0 +1,142 @@
+[
+    {
+        "operation_type": "import_blend",
+        "parameters": {
+            "import_folder": "blender_fragments/dk_milepost",
+            "import_filename": "PGA_DKMilepost_x_y.blend",
+            "collection_name": "MAIN",
+            "location": [0.0, 0.0, 0.0],
+            "rotation": [0.0, 0.0, 0.0],
+            "scale": [1.0, 1.0, 1.0]
+        }
+    },
+    {
+        "operation_type": "export_sd",
+        "parameters": {
+            "export_path": "dist/dk_milepost/shapes",
+            "shape_filename_pattern": "PGA_DKMilepost_{kilometers:03d}_{meters:d}.s",
+            "bbox_collection_name": "MAIN_0150",
+            "pattern_variables": {
+                "kilometers": {
+                    "type": "integer",
+                    "values": [
+                        {
+                            "number_start": 0,
+                            "number_stop": 2
+                        }
+                    ]
+                },
+                "meters": {
+                    "type": "integer",
+                    "values": [
+                        {
+                            "number_start": 0,
+                            "number_stop": 8,
+                            "number_step": 2
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "operation_type": "export_s",
+        "parameters": {
+            "export_folder": "dist/dk_milepost/shapes",
+            "material_name": "PGA_DKMilepost_x_y",
+            "shape_filename_pattern": "PGA_DKMilepost_{kilometers:03d}_{meters:d}.s",
+            "texture_filename_pattern": "PGA_DKMilepost_{kilometers:03d}_{meters:d}.ace",
+            "pattern_variables": {
+                "kilometers": {
+                    "type": "integer",
+                    "values": [
+                        {
+                            "number_start": 0,
+                            "number_stop": 2
+                        }
+                    ]
+                },
+                "meters": {
+                    "type": "integer",
+                    "values": [
+                        {
+                            "number_start": 0,
+                            "number_stop": 8,
+                            "number_step": 2
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "operation_type": "compress_s_ffeditc",
+        "parameters": {
+            "ffeditc_exe_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
+            "input_folder": "dist/dk_milepost/shapes"
+        }
+    },
+    {
+        "operation_type": "process_image_gimp",
+        "parameters": {
+            "input_folder": "gimp_templates/dk_milepost",
+            "input_filename": "PGA_DKMilepost_x_y.xcf",
+            "gimp_operations": [
+                {
+                    "script_name": "change_text_layer_and_export_png.py",
+                    "function_name": "python-fu-change-text-layer-and-export-png",
+                    "args": {
+                        "export_path": "dist/dk_milepost/textures",
+                        "export_config": {
+                            "output_filename_pattern": "PGA_DKMilepost_{kilometers:03d}_{meters:d}.png",
+                            "text_layer_replacements": [
+                                {
+                                    "text_layer_name": "KM",
+                                    "new_text_pattern": "{kilometers:d}"
+                                },
+                                {
+                                    "text_layer_name": "M",
+                                    "new_text_pattern": "{meters:d}"
+                                }
+                            ],
+                            "pattern_variables": {
+                                "kilometers": {
+                                    "type": "integer",
+                                    "values": [
+                                        {
+                                            "number_start": 0,
+                                            "number_stop": 2
+                                        }
+                                    ]
+                                },
+                                "meters": {
+                                    "type": "integer",
+                                    "values": [
+                                        {
+                                            "number_start": 0,
+                                            "number_stop": 8,
+                                            "number_step": 2
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "png_compression": 9
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "operation_type": "process_image_aceit",
+        "parameters": {
+            "aceit_exe_path": "/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
+            "input_folder": "dist/dk_milepost/textures",
+            "process_extensions": [".png"],
+            "extra_params": [
+                "-q"
+            ],
+            "remove_source_image": true
+        }
+    }
+]

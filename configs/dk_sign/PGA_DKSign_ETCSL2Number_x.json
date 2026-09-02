@@ -1,39 +1,182 @@
-{
-    "operation_type": "export_s",
-    "parameters": {
-        "export_path": "/output",
-        "material_name": "PGA_DKSign_ETCSL2Number_x",
-        "shape_name_pattern": "PGA_DKSign_ETCSL2Number_{value}_L",
-        "texture_name_pattern": "PGA_DKSign_ETCSL2Number_{value}",
-        "value_replacements": {
-            "-": ""
-        },
-        "groups": [
-            {
-                "prefix": "Ig",
-                "start": 58,
-                "stop": 59
-            },
-            {
-                "prefix": "Ada",
-                "start": 11,
-                "stop": 30
-            },
-            {
-                "prefix": "Avh",
-                "start": 11,
-                "stop": 55
-            },
-            {
-                "prefix": "Bjs",
-                "start": 11,
-                "stop": 51
-            },
-            {
-                "prefix": "Kib",
-                "start": 7,
-                "stop": 60
+[
+    {
+        "operation_type": "import_blend",
+        "parameters": {
+            "input_folder": "blender_fragments/dk_sign",
+            "input_filename": "PGA_DKSign_ETCSL2Number_x_L.blend",
+            "collection_name": "MAIN",
+            "location": [0.0, 0.0, 0.0],
+            "rotation": [0.0, 0.0, 0.0],
+            "scale": [1.0, 1.0, 1.0]
+        }
+    },
+    {
+        "operation_type": "export_sd",
+        "parameters": {
+            "export_folder": "dist/dk_sign_etcsl2number/shapes",
+            "shape_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}_L.s",
+            "bbox_collection_name": "MAIN_0150",
+            "pattern_variables": {
+                "etcsnumber": {
+                    "type": "string",
+                    "filename_replacements": {
+                        "-": ""
+                    },
+                    "values": [
+                        {
+                            "pattern": "Ig-{number:03d}",
+                            "number_start": 58,
+                            "number_stop": 59
+                        }
+                    ]
+                }
             }
-        ]
+        }
+    },
+    {
+        "operation_type": "export_s",
+        "parameters": {
+            "export_folder": "dist/dk_sign_etcsl2number/shapes",
+            "material_name": "PGA_DKSign_ETCSL2Number_x",
+            "shape_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}_L.s",
+            "texture_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}.ace",
+            "pattern_variables": {
+                "etcsnumber": {
+                    "type": "string",
+                    "filename_replacements": {
+                        "-": ""
+                    },
+                    "values": [
+                        {
+                            "pattern": "Ig-{number:03d}",
+                            "number_start": 58,
+                            "number_stop": 59
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "operation_type": "reset_blender",
+        "parameters": {}
+    },
+    {
+        "operation_type": "import_blend",
+        "parameters": {
+            "input_folder": "blender_fragments/dk_sign",
+            "input_filename": "PGA_DKSign_ETCSL2Number_x_R.blend",
+            "collection_name": "MAIN",
+            "location": [0.0, 0.0, 0.0],
+            "rotation": [0.0, 0.0, 0.0],
+            "scale": [1.0, 1.0, 1.0]
+        }
+    },
+    {
+        "operation_type": "export_sd",
+        "parameters": {
+            "export_folder": "dist/dk_sign_etcsl2number/shapes",
+            "shape_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}_R.s",
+            "bbox_collection_name": "MAIN_0150",
+            "pattern_variables": {
+                "etcsnumber": {
+                    "type": "string",
+                    "filename_replacements": {
+                        "-": ""
+                    },
+                    "values": [
+                        {
+                            "pattern": "Ig-{number:03d}",
+                            "number_start": 58,
+                            "number_stop": 59
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "operation_type": "export_s",
+        "parameters": {
+            "export_folder": "dist/dk_sign_etcsl2number/shapes",
+            "material_name": "PGA_DKSign_ETCSL2Number_x",
+            "shape_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}_R.s",
+            "texture_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}.ace",
+            "pattern_variables": {
+                "etcsnumber": {
+                    "type": "string",
+                    "filename_replacements": {
+                        "-": ""
+                    },
+                    "values": [
+                        {
+                            "pattern": "Ig-{number:03d}",
+                            "number_start": 58,
+                            "number_stop": 59
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "operation_type": "compress_s_ffeditc",
+        "parameters": {
+            "ffeditc_exe_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
+            "input_folder": "dist/dk_sign_etcsl2number/shapes"
+        }
+    },
+    {
+        "operation_type": "process_image_gimp",
+        "parameters": {
+            "input_folder": "gimp_templates/dk_sign",
+            "input_filename": "PGA_DKSign_ETCSL2Number_x.xcf",
+            "gimp_operations": [
+                {
+                    "script_name": "change_text_layer_and_export_png.py",
+                    "function_name": "python-fu-change-text-layer-and-export-png",
+                    "args": {
+                        "export_path": "dist/dk_sign_etcsl2number/textures",
+                        "export_config": {
+                            "output_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}.png",
+                            "text_layer_replacements": [
+                                {
+                                    "text_layer_name": "N",
+                                    "new_text_pattern": "{etcsnumber}"
+                                }
+                            ],
+                            "pattern_variables": {
+                                "etcsnumber": {
+                                    "type": "string",
+                                    "filename_replacements": {
+                                        "-": ""
+                                    },
+                                    "values": [
+                                        {
+                                            "pattern": "Ig-{number:03d}",
+                                            "number_start": 58,
+                                            "number_stop": 59
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "png_compression": 9
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "operation_type": "process_image_aceit",
+        "parameters": {
+            "aceit_exe_path": "/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
+            "input_folder": "dist/dk_sign_etcsl2number/textures",
+            "process_extensions": [".png"],
+            "extra_params": [
+                "-q"
+            ],
+            "remove_source_image": true
+        }
     }
-}
+]
