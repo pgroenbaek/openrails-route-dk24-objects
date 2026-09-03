@@ -20,10 +20,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# It is called by `run_operations.py`, which reads the JSON configuration
-# and dispatches the requested Blender operations. The `run_operations.py`
-# script can also be run directly from Blender's scripting console
-# configured with a set of config files by pasting it in.
+# Do not run this manually, this script is called by `run_operations.py`,
+# which reads the JSON configuration and processes the requested Blender
+# operations as they are defined. The `run_operations.py` script can be run
+# from the command line with Blender or directly from Blender's scripting
+# console by pasting in the script with `CONFIG_FILES` configured.
 
 import bpy
 import math
@@ -259,7 +260,7 @@ def transform_objects(objects, location, rotation, scale):
     Args:
         objects (list): Blender objects to transform.
         location (list or Vector): Translation as [x, y, z].
-        rotation (list or Vector): Euler XYZ rotation in radians.
+        rotation (list or Vector): Euler XYZ rotation in degrees.
         scale (list or Vector): Scale factors as [x, y, z].
     """
     location = Vector(location)
@@ -284,19 +285,23 @@ def perform_operation(params):
         params (dict): Import and transformation configuration.
 
     Expected keys:
-        - "file_path" (str): Path to the .blend file. Relative paths are
-          resolved against the project directory.
+        - "import_folder" (str): Path to the directory with the .blend
+          file to import. Relative paths are resolved against the project directory.
+        - "import_filename" (str): Name of the .blend file to import.
         - "collection_name" (str): Root collection to import. Only this
           collection and its descendants are imported.
         - "location" (list, optional): Translation as [x, y, z].
-        - "rotation" (list, optional): Euler XYZ rotation in radians as
+        - "rotation" (list, optional): Euler XYZ rotation in degrees as
           [x, y, z].
         - "scale" (list, optional): Scale as [x, y, z].
         - "_project_dir" (Path): Project root directory used to resolve
           relative file paths.
     """
     project_dir = Path(params["_project_dir"])
-    file_path = Path(params["file_path"])
+    import_folder = Path(params["import_folder"])
+    import_filename = Path(params["import_filename"])
+
+    file_path = import_folder / import_filename
 
     if not file_path.is_absolute():
         file_path = project_dir / file_path
@@ -306,8 +311,8 @@ def perform_operation(params):
     rotation = params.get("rotation", [0.0, 0.0, 0.0])
     scale = params.get("scale", [1.0, 1.0, 1.0])
 
-    print(f"Importing blend file: {file_path}")
-    print(f"Collection: {collection_name}")
+    print(f"Importing blend file: '{file_path}'")
+    print(f"Collection: '{collection_name}'")
 
     objects = import_blend_file(file_path, collection_name)
     transform_objects(objects, location, rotation,scale)

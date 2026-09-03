@@ -20,180 +20,273 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# It is called by `run_operations.py`, which reads the JSON configuration
-# and dispatches the requested Blender operations. The `run_operations.py`
-# script can also be run directly from Blender's scripting console
-# configured with a set of config files by pasting it in.
+# Do not run this manually, this script is called by `run_operations.py`,
+# which reads the JSON configuration and processes the requested Blender
+# operations as they are defined. The `run_operations.py` script can be run
+# from the command line with Blender or directly from Blender's scripting
+# console by pasting in the script with `CONFIG_FILES` configured.
 
 import os
+import io
+import sys
+import string
 import bpy
+import itertools
+from pathlib import Path
 
 
-EXPORT_PATH = None
-MATERIAL_NAME = None
+SUPPRESS_EXPORTER_ADDON_PRINTS = True
 
 
-def ensure_directory_exists(path):
+def apply_filename_replacements(value, replacements):
     """
-    Ensures that a directory exists by creating it if necessary.
+    Applies a set of string replacements to a value.
 
     Args:
-        path (str): Directory path to check or create.
-    """
-    os.makedirs(path, exist_ok=True)
-
-
-def sanitize_value(value, replacements):
-    """
-    Applies configured string replacements to a value.
-
-    Args:
-        value (str): Value to sanitize.
-        replacements (dict): Mapping of strings to replacement strings.
+        value (str): The value to apply replacements to. Non-string values are
+            converted to strings.
+        replacements (dict[str, str]): A dictionary mapping substrings to their
+            replacement values.
 
     Returns:
-        str: Sanitized value.
+        str: The resulting string after all replacements have been applied.
     """
-    value = str(value)
-
-    for search, replace in replacements.items():
-        value = value.replace(search, replace)
-
+    if not isinstance(value, str):
+        value = str(value)
+    
+    for old, new in replacements.items():
+        value = value.replace(old, new)
+    
     return value
 
 
-def build_exports(params):
+def resolve_pattern_values(pattern, pattern_variables):
     """
-    Builds the list of exports from the operation parameters.
+    Resolve a pattern into all possible concrete values.
 
     Args:
-        params (dict): Export configuration.
+        pattern (str): Pattern containing placeholders such as `{variable}`.
+        pattern_variables (dict): Variable definitions containing possible
+            values and optional transformation rules.
 
     Returns:
-        list: List of dictionaries containing export variables.
+        list[str]: All fully resolved pattern strings.
     """
-    exports = params.get("exports")
+    if not pattern_variables:
+        return [pattern]
 
-    if exports is not None:
-        return exports
+    formatter = string.Formatter()
+    variable_names = list(dict.fromkeys(
+        field_name
+        for _, field_name, _, _ in formatter.parse(pattern)
+        if field_name is not None
+    ))
 
-    values = params.get("values")
+    if not variable_names:
+        return [pattern]
 
-    if values is not None:
-        return [{"value": value} for value in values]
+    variable_value_lists = []
 
-    groups = params.get("groups")
+    for variable_name in variable_names:
+        variable_config = pattern_variables.get(variable_name)
 
-    if groups is not None:
-        exports = []
+        if not variable_config:
+            raise ValueError(
+                f"Pattern variable '{variable_name}' defined in pattern "
+                f"'{pattern}' was not found in pattern_variables."
+            )
 
-        for group in groups:
-            prefix = group.get("prefix", "")
-            start = group["start"]
-            stop = group["stop"]
-            step = group.get("step", 1)
-            number_format = group.get("number_format", "03d")
+        variable_type = variable_config.get("type", "string")
+        filename_replacements = variable_config.get("filename_replacements", {})
 
-            for number in range(start, stop + 1, step):
-                value = f"{prefix}-{number:{number_format}}"
-                exports.append({"value": value})
+        if filename_replacements and variable_type != "string":
+            raise ValueError(
+                f"Cannot use 'filename_replacements' in variable '{variable_name}' "
+                "for variable types other than 'string'."
+            )
 
-        return exports
+        values = []
 
-    raise ValueError("No exports, values, or groups specified.")
+        for value in variable_config["values"]:
+            if isinstance(value, (int, float)):
+                if variable_type != "number":
+                    raise ValueError(f"Invalid value '{value}' for value of type 'number'.")
+                
+                values.append(value)
+
+            elif isinstance(value, str):
+                if variable_type != "string":
+                    raise ValueError(f"Invalid value '{value}' for value of type 'string'.")
+
+                resolved_value = apply_filename_replacements(value, filename_replacements,)
+                values.append(resolved_value)
+
+            elif isinstance(value, dict):
+                number_start = value.get("number_start")
+                number_stop = value.get("number_stop")
+                number_step = value.get("number_step", 1)
+
+                if number_start is None or number_stop is None:
+                    raise ValueError(
+                        f"Invalid value expression in variable '{variable_name}', "
+                        "missing 'number_start' or 'number_stop'."
+                    )
+
+                for number in range(number_start, number_stop + 1, number_step):
+                    if "pattern" in value:
+                        if variable_type != "string":
+                            raise ValueError(
+                                f"Invalid value expression in variable '{variable_name}', "
+                                "expressions cannot contain 'pattern' unless variable type is 'string'."
+                            )
+
+                        resolved_value = value["pattern"].format(number=number)
+
+                        resolved_value = apply_filename_replacements(
+                            resolved_value,
+                            filename_replacements,
+                        )
+
+                        values.append(resolved_value)
+                    
+                    else:
+                        values.append(str(number) if variable_type == "string" else number)
+
+            else:
+                raise TypeError(
+                    "Unsupported value type for variable "
+                    f"'{variable_name}': {type(value).__name__}"
+                )
+
+        variable_value_lists.append(values)
+
+    return [
+        pattern.format(**dict(zip(variable_names, combination)))
+        for combination in itertools.product(*variable_value_lists)
+    ]
 
 
-def replace_text_in_file(file_path, search_text, replace_text):
+def set_exporter_texture_name(material_name, texture_name):
     """
-    Replaces all occurrences of text in a UTF-16 encoded file.
+    Sets the texture name used for a material with the MSTS/ORTS exporter
+    if it is not already set.
 
     Args:
-        file_path (str): Path to the file to modify.
-        search_text (str): Text to search for.
-        replace_text (str): Text to replace it with.
+        material_name (str): Name of the Blender material.
+        texture_name (str): Texture name to use for the material.
+
+    Raises:
+        ValueError: If the material does not exist.
     """
-    with open(file_path, "r", encoding="utf-16") as file:
-        file_text = file.read()
+    material = bpy.data.materials.get(material_name)
 
-    file_text = file_text.replace(search_text, replace_text)
+    if material is None:
+        raise ValueError(f"Material not found: '{material_name}'")
 
-    with open(file_path, "w", encoding="utf-16") as file:
-        file.write(file_text)
+    if hasattr(material, "msts") and hasattr(material.msts, "BaseColorFilepath"):
+        material.msts.BaseColorFilepath = texture_name
 
 
-def export_s_file(file_path):
+def export_s_file(file_path, use_dds):
     """
-    Exports an S file using Blender's MSTS exporter.
+    Exports a shape file using Blender's MSTS exporter.
 
     Args:
-        file_path (str): Destination path for the S file.
+        file_path (str): Destination path for the shape file.
+        use_dds (bool): Whether to use ".dds" extension on textures instead of ".ace".
     """
-    bpy.ops.export.msts_s(filepath=file_path)
+    if hasattr(bpy.context.scene, "msts") and hasattr(bpy.context.scene.msts, "UseDDS"):
+        bpy.context.scene.msts.UseDDS = use_dds
+
+    if SUPPRESS_EXPORTER_ADDON_PRINTS:
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+
+        try:
+            bpy.ops.export.msts_s(filepath=file_path)
+        finally:
+            sys.stdout = old_stdout
+    else:
+        bpy.ops.export.msts_s(filepath=file_path)
 
 
 def perform_operation(params):
     """
-    Exports one or more MSTS/ORTS S files using Blender's MSTS exporter.
+    Exports one or more MSTS/ORTS shape files using Blender's MSTS exporter.
 
     Args:
         params (dict): Export configuration.
 
     Expected keys:
-        - "export_path" (str): Directory where S files are written.
-        - "shape_name" (str, optional): Name of a single shape to export.
-        - "exports" (list, optional): Explicit list of export variable dictionaries.
-        - "values" (list, optional): List of values used by the filename patterns.
-        - "groups" (list, optional): Groups used to generate numbered values.
-        - "shape_name_pattern" (str): Pattern used to generate shape names.
-        - "texture_name_pattern" (str, optional): Pattern used to generate texture names.
-        - "material_name" (str, optional): Material texture filename to replace.
-        - "value_replacements" (dict, optional): String replacements applied to values.
+        - "export_folder" (str): Directory where files are written.
+        - "use_dds" (bool): Whether to use `.dds` instead of `.ace` for texture extensions.
+        - "shape_filename" (str, optional): Name of a single shape to export.
+        - "shape_filename_pattern" (str): Pattern used to generate shape names.
+        - "materials" (dict, optional): List of materials and their texture filename/patterns.
+        - "pattern_variables" (dict): Configuration of the variables used in e.g. `shape_filename_pattern`.
+        - "_project_dir" (Path): Project root directory used to resolve
+          relative file paths.
     """
-    export_path = params.get("export_path", EXPORT_PATH)
-    shape_name = params.get("shape_name")
-    shape_name_pattern = params.get("shape_name_pattern")
-    texture_name_pattern = params.get("texture_name_pattern")
-    material_name = params.get("material_name", MATERIAL_NAME)
-    replacements = params.get("value_replacements", {})
-    project_dir = params.get("_project_dir")
+    export_folder = Path(params.get("export_folder"))
+    use_dds = params.get("use_dds", False)
+    shape_filename = params.get("shape_filename")
+    shape_filename_pattern = params.get("shape_filename_pattern")
+    materials = params.get("materials")
+    pattern_variables = params.get("pattern_variables")
+    project_dir = Path(params.get("_project_dir"))
 
-    if export_path and not os.path.isabs(export_path):
-        export_path = os.path.join(project_dir, export_path)
-
-    if not export_path:
-        raise ValueError("No export_path specified.")
-
-    if shape_name:
-        exports = [{"value": shape_name}]
+    if export_folder and not os.path.isabs(export_folder):
+        export_folder = project_dir / export_folder
+    
+    if shape_filename_pattern:
+        shape_filenames = resolve_pattern_values(shape_filename_pattern, pattern_variables)
     else:
-        exports = build_exports(params)
+        shape_filenames = [shape_filename]
+    
+    material_textures = {}
 
-    ensure_directory_exists(export_path)
+    for material in materials:
+        material_name = material.get("material_name")
+        texture_filename_pattern = material.get("texture_filename_pattern")
+        texture_filename = material.get("texture_filename")
 
-    for export in exports:
-        values = {
-            key: sanitize_value(value, replacements)
-            for key, value in export.items()
-        }
-
-        if shape_name:
-            current_shape_name = shape_name
-        else:
-            current_shape_name = shape_name_pattern.format(**values)
-
-        texture_name = None
-
-        if texture_name_pattern:
-            texture_name = texture_name_pattern.format(**values)
-
-        file_path = os.path.join(export_path, f"{current_shape_name}.s")
-
-        export_s_file(file_path)
-
-        if material_name and texture_name:
-            replace_text_in_file(
-                file_path,
-                f"{material_name}.ace",
-                f"{texture_name}.ace"
+        if not material_name:
+            raise ValueError(
+                f""
             )
+            
+
+        if texture_filename_pattern:
+            texture_names = resolve_pattern_values(texture_filename_pattern, pattern_variables)
+
+        elif texture_filename:
+            texture_names = [texture_filename] * len(shape_filenames)
+
+        else:
+            raise ValueError(
+                f""
+            )
+        
+        if len(shape_filenames) != len(texture_names):
+            raise ValueError(
+                f""
+            )
+
+        material_textures[material_name] = texture_names
+
+    if export_folder:
+        os.makedirs(export_folder, exist_ok=True)
+    
+    for idx, shape_filename in enumerate(shape_filenames):
+        if not shape_filename.endswith(".s"):
+            shape_filename = shape_filename + ".s"
+        
+        export_path = str(export_folder / shape_filename)
+
+        for material_name in material_textures.keys():
+            set_exporter_texture_name(material_name, material_textures[material_name][idx])
+        
+        export_s_file(export_path, use_dds)
+
+        print(f"Exported S file: '{export_path}'")
 

@@ -20,10 +20,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# It is called by `run_operations.py`, which reads the JSON configuration
-# and dispatches the requested Blender operations. The `run_operations.py`
-# script can also be run directly from Blender's scripting console
-# configured with a set of config files by pasting it in.
+# Do not run this manually, this script is called by `run_operations.py`,
+# which reads the JSON configuration and processes the requested Blender
+# operations as they are defined. The `run_operations.py` script can be run
+# from the command line with Blender or directly from Blender's scripting
+# console by pasting in the script with `CONFIG_FILES` configured.
 
 import bpy
 import math
@@ -33,7 +34,6 @@ from mathutils import Vector, Quaternion, Matrix
 
 
 MATERIAL_NAME = "Wire"
-MATERIAL_MSTS_TEXTURE_NAME = "DB_Rails1.png"
 LOD_DISTANCE_METERS = 500
 
 WIRE_NAME = "ReturnWire"
@@ -42,14 +42,8 @@ WIRE_THICKNESS = 0.03
 WIRE_SAG_RATIO = 0.011
 
 WORLD_UP = Vector((0, 0, 1))
-WORLD_FOLDER = "/media/peter/T7 Shield/Repos/personal/openrails-route-dk24/ROUTES/OR_DK24/WORLD"
 
 TILE_SIZE = 2048
-
-# This position and tile is where to place the generated object in world coordinates.
-# Rotation of the object should be QDirection( 0 0 0 1 ).
-REFERENCE_POSITION = Vector((-874.908, 14.4113, -828.282))
-REFERENCE_TILE = Vector((-5656, 15119))
 
 PROFILE_WIRE = [
     (Vector((0.0,  WIRE_THICKNESS / 2.0)), Vector((0.0, 0.00))),
@@ -123,20 +117,6 @@ def link_object_to_lod_collection(obj, lod_distance, main_collection_name="MAIN"
         main_collection.children.link(dlevel_collection)
 
     dlevel_collection.objects.link(obj)
-
-
-def set_exporter_texture_name(material, texture_name):
-    """
-    Sets the texture name used for a material with the MSTS/ORTS exporter if
-    it is not already set.
-
-    Args:
-        material (bpy.types.Material): Blender material to configure.
-        texture_name (str): Texture name to use for the material.
-    """
-    if hasattr(material, "msts") and hasattr(material.msts, "BaseColorFilepath"):
-        if not material.msts.BaseColorFilepath:
-            material.msts.BaseColorFilepath = texture_name
 
 
 def assign_material(obj, material_name):
@@ -378,7 +358,7 @@ def calculate_mast_wire_positions(masts, mast_types, tile_size, reference_positi
     return wire_mast_points
 
 
-def build_wire(name, wire_attachment_points, wire_name, wire_span_resolution, wire_sag_ratio, world_up, profile_wire, lod_distance, material_name, material_msts_texture_name):
+def build_wire(name, wire_attachment_points, wire_name, wire_span_resolution, wire_sag_ratio, world_up, profile_wire, lod_distance, material_name):
     """
     Generates a 3D wire mesh in Blender based on a series of attachment points.
 
@@ -392,7 +372,6 @@ def build_wire(name, wire_attachment_points, wire_name, wire_span_resolution, wi
         profile_wire (list): 2D wire profile containing profile offsets and texture coordinates.
         lod_distance (float): LOD distance in meters.
         material_name (str): Name of the material to assign to the wire.
-        material_msts_texture_name (str): MSTS/ORTS texture name for the material.
 
     Returns:
         bpy.types.Object or None: The generated Blender object, or None if no path points were generated.
@@ -474,8 +453,6 @@ def build_wire(name, wire_attachment_points, wire_name, wire_span_resolution, wi
     material = assign_material(obj, material_name)
     material_index = obj.data.materials.find(material.name)
 
-    set_exporter_texture_name(material, material_msts_texture_name)
-
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
 
@@ -506,8 +483,6 @@ def perform_operation(params):
     Expected keys:
         - "material_name" (str, optional): Material name used for the generated
           wire.
-        - "material_msts_texture_name" (str, optional): MSTS texture name
-          associated with the generated material.
         - "lod_distance_meters" (float, optional): Distance in meters used for
           level-of-detail generation.
         - "wire_name" (str, optional): Name assigned to the generated wire.
@@ -534,7 +509,6 @@ def perform_operation(params):
           for which return wires are generated.
     """
     material_name = params.get("material_name", MATERIAL_NAME)
-    material_msts_texture_name = params.get("material_msts_texture_name", MATERIAL_MSTS_TEXTURE_NAME)
     lod_distance = params.get("lod_distance_meters", LOD_DISTANCE_METERS)
     wire_name = params.get("wire_name", WIRE_NAME)
     wire_span_resolution = params.get("wire_span_resolution", WIRE_SPAN_RESOLUTION)
@@ -581,6 +555,5 @@ def perform_operation(params):
             world_up,
             profile_wire,
             lod_distance,
-            material_name,
-            material_msts_texture_name
+            material_name
         )

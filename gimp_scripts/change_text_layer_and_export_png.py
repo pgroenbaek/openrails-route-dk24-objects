@@ -20,10 +20,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a GIMP Python-fu script.
 #
-# It is called by `process_image_gimp.py`, which reads the JSON configuration
-# and converts it into the positional arguments required by GIMP/Python-Fu.
-# The `process_image_gimp.py` script is run in Blender via the
-# `run_operations.py` script.
+# Do not run this manually, this script is called by `process_image_gimp.py`,
+# which reads the JSON configuration and converts it into the positional arguments
+# required by GIMP/Python-Fu. The `process_image_gimp.py` script that calls this
+# script is run in Blender via `run_operations.py`.
 
 from gimpfu import *
 import os

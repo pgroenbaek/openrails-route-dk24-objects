@@ -20,17 +20,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# It is called by `run_operations.py`, which reads the JSON configuration
-# and dispatches the requested Blender operations. The `run_operations.py`
-# script can also be run directly from Blender's scripting console
-# configured with a set of config files by pasting it in.
+# Do not run this manually, this script is called by `run_operations.py`,
+# which reads the JSON configuration and processes the requested Blender
+# operations as they are defined. The `run_operations.py` script can be run
+# from the command line with Blender or directly from Blender's scripting
+# console by pasting in the script with `CONFIG_FILES` configured.
 
 import os
+import string
 import bpy
 import numpy as np
+import itertools
+from pathlib import Path
 
 
-COLLECTION_NAME = "MAIN_0150"
+DEFAULT_BBOX = "0.0 0.0 0.0 0.0 0.0 0.0"
+DEFAULT_BBOX_COLLECTION_NAME = "MAIN"
 
 
 def np_matmul_coords(coords, matrix):
@@ -92,182 +97,228 @@ def calc_bbox(collection_name):
     if not mesh_objects:
         raise ValueError(f"Collection '{collection_name}' contains no mesh objects")
 
-    coords = np.vstack(
-        tuple(
-            np_matmul_coords(np.array(obj.bound_box), obj.matrix_world.copy())
-            for obj in mesh_objects
-        )
+    coords = np.vstack(tuple(
+        np_matmul_coords(np.array(obj.bound_box), obj.matrix_world.copy())
+        for obj in mesh_objects
+    ))
+
+    bottom_front_left = coords.min(axis=0)
+    top_back_right = coords.max(axis=0)
+
+    return (
+        f"{round(bottom_front_left[0], 4)} "
+        f"{round(bottom_front_left[2], 4)} "
+        f"{round(bottom_front_left[1], 4)} "
+        f"{round(top_back_right[0], 4)} "
+        f"{round(top_back_right[2], 4)} "
+        f"{round(top_back_right[1], 4)}"
     )
 
-    bfl = coords.min(axis=0)
-    tbr = coords.max(axis=0)
 
-    return f"{round(bfl[0], 4)} {round(bfl[2], 4)} {round(bfl[1], 4)} {round(tbr[0], 4)} {round(tbr[2], 4)} {round(tbr[1], 4)}"
-
-
-def get_filepath():
+def apply_filename_replacements(value, replacements):
     """
-    Generates the default SD file path from the current Blender project.
+    Applies a set of string replacements to a value.
+
+    Args:
+        value (str): The value to apply replacements to. Non-string values are
+            converted to strings.
+        replacements (dict[str, str]): A dictionary mapping substrings to their
+            replacement values.
 
     Returns:
-        str: The SD file path.
-
-    Raises:
-        ValueError: If the Blender file has not been saved.
+        str: The resulting string after all replacements have been applied.
     """
-    blend_filepath = bpy.data.filepath
+    if not isinstance(value, str):
+        value = str(value)
+    
+    for old, new in replacements.items():
+        value = value.replace(old, new)
+    
+    return value
 
-    if not blend_filepath:
-        raise ValueError("No previously saved file name available.")
 
-    return os.path.splitext(blend_filepath)[0] + ".sd"
-
-
-def get_shape_name():
+def resolve_pattern_values(pattern, pattern_variables):
     """
-    Generates the default shape name from the current Blender filename.
+    Resolve a pattern into all possible concrete values.
+
+    Args:
+        pattern (str): Pattern containing placeholders such as `{variable}`.
+        pattern_variables (dict): Variable definitions containing possible
+            values and optional transformation rules.
 
     Returns:
-        str: The Blender filename without its extension.
-
-    Raises:
-        ValueError: If the Blender file has not been saved.
+        list[str]: All fully resolved pattern strings.
     """
-    blend_filepath = bpy.data.filepath
+    if not pattern_variables:
+        return [pattern]
 
-    if not blend_filepath:
-        raise ValueError("No previously saved file name available.")
+    formatter = string.Formatter()
+    variable_names = list(dict.fromkeys(
+        field_name
+        for _, field_name, _, _ in formatter.parse(pattern)
+        if field_name is not None
+    ))
 
-    filename = os.path.basename(blend_filepath)
+    if not variable_names:
+        return [pattern]
 
-    return os.path.splitext(filename)[0]
+    variable_value_lists = []
+
+    for variable_name in variable_names:
+        variable_config = pattern_variables.get(variable_name)
+
+        if not variable_config:
+            raise ValueError(
+                f"Pattern variable '{variable_name}' defined in pattern "
+                f"'{pattern}' was not found in pattern_variables."
+            )
+
+        variable_type = variable_config.get("type", "string")
+        filename_replacements = variable_config.get("filename_replacements", {})
+
+        if filename_replacements and variable_type != "string":
+            raise ValueError(
+                f"Cannot use 'filename_replacements' in variable '{variable_name}' "
+                "for variable types other than 'string'."
+            )
+
+        values = []
+
+        for value in variable_config["values"]:
+            if isinstance(value, (int, float)):
+                if variable_type != "number":
+                    raise ValueError(f"Invalid value '{value}' for value of type 'number'.")
+                
+                values.append(value)
+
+            elif isinstance(value, str):
+                if variable_type != "string":
+                    raise ValueError(f"Invalid value '{value}' for value of type 'string'.")
+
+                resolved_value = apply_filename_replacements(value, filename_replacements,)
+                values.append(resolved_value)
+
+            elif isinstance(value, dict):
+                number_start = value.get("number_start")
+                number_stop = value.get("number_stop")
+                number_step = value.get("number_step", 1)
+
+                if number_start is None or number_stop is None:
+                    raise ValueError(
+                        f"Invalid value expression in variable '{variable_name}', "
+                        "missing 'number_start' or 'number_stop'."
+                    )
+
+                for number in range(number_start, number_stop + 1, number_step):
+                    if "pattern" in value:
+                        if variable_type != "string":
+                            raise ValueError(
+                                f"Invalid value expression in variable '{variable_name}', "
+                                "expressions cannot contain 'pattern' unless variable type is 'string'."
+                            )
+
+                        resolved_value = value["pattern"].format(number=number)
+
+                        resolved_value = apply_filename_replacements(
+                            resolved_value,
+                            filename_replacements,
+                        )
+
+                        values.append(resolved_value)
+                    
+                    else:
+                        values.append(str(number) if variable_type == "string" else number)
+
+            else:
+                raise TypeError(
+                    "Unsupported value type for variable "
+                    f"'{variable_name}': {type(value).__name__}"
+                )
+
+        variable_value_lists.append(values)
+
+    return [
+        pattern.format(**dict(zip(variable_names, combination)))
+        for combination in itertools.product(*variable_value_lists)
+    ]
 
 
 def export_sd_file(file_path, shape_name, bbox):
     """
-    Exports an SD shape definition file for MSTS/ORTS.
+    Exports a shape definition file for MSTS/ORTS.
 
     Args:
         file_path (str): Destination path for the SD file.
         shape_name (str): Shape name referenced by the SD file.
-        bbox (str): Bounding box for ESD_Bounding_Box.
+        bbox (str): Bounding box value for ESD_Bounding_Box.
     """
     with open(file_path, "w", encoding="utf-8") as sd_file:
         sd_file.write("SIMISA@@@@@@@@@@JINX0t1t______\n")
-        sd_file.write(f"Shape ( {shape_name}.s\n")
+
+        if shape_name.endswith(".s"):
+            sd_file.write(f"Shape ( {shape_name}\n")
+        else:
+            sd_file.write(f"Shape ( {shape_name}.s\n")
+        
         sd_file.write("\tESD_Detail_Level ( 0 )\n")
         sd_file.write("\tESD_Alternative_Texture ( 0 )\n")
         sd_file.write(f"\tESD_Bounding_Box ( {bbox} )\n")
         sd_file.write(")\n")
 
 
-def build_exports(params):
-    """
-    Builds the list of SD exports from the operation parameters.
-
-    Args:
-        params (dict): Export configuration.
-
-    Returns:
-        list: List of export dictionaries.
-    """
-    exports = params.get("exports")
-
-    if exports is not None:
-        return exports
-
-    values = params.get("values")
-
-    if values is not None:
-        return [{"value": value} for value in values]
-
-    groups = params.get("groups")
-
-    if groups is not None:
-        exports = []
-
-        for group in groups:
-            prefix = group.get("prefix", "")
-            start = group["start"]
-            stop = group["stop"]
-            step = group.get("step", 1)
-            number_format = group.get("number_format", "03d")
-
-            for number in range(start, stop + 1, step):
-                value = f"{prefix}-{number:{number_format}}"
-                exports.append({"value": value})
-
-        return exports
-
-    raise ValueError("No exports, values, or groups specified.")
-
-
 def perform_operation(params):
     """
-    Exports one or more MSTS/ORTS SD shape definition files.
+    Exports one or more MSTS/ORTS shape definition files.
 
     Args:
         params (dict): Export configuration.
 
     Expected keys:
-        - "file_path" (str, optional): Path for a single SD file.
-        - "shape_name" (str, optional): Shape name for a single export.
-        - "collection_name" (str, optional): Collection used for the bounding box.
-        - "export_path" (str, optional): Directory for generated SD files.
-        - "shape_name_pattern" (str, optional): Pattern for generated shape names.
-        - "values" (list, optional): Explicit values used by naming patterns.
-        - "groups" (list, optional): Numbered groups used to generate values.
-        - "exports" (list, optional): Explicit export definitions.
-        - "bbox" (str, optional): Explicit bounding box instead of calculating one.
+        - "export_folder" (str): Path for a single SD file.
+        - "shape_filename" (str): Shape name for a single export, not used when
+          specifying `shape_filename_pattern`.
+        - "shape_filename_pattern" (str, optional): Pattern for generated shape names.
+        - "bbox" (str, optional): Bounding box to use, defaults to bounds of collection "MAIN".
+        - "bbox_collection_name" (str, optional): Collection used for calculating
+          the bounding box, defaults to "MAIN".
+        - "_project_dir" (Path): Project root directory used to resolve
+          relative file paths.
     """
-    export_path = params.get("export_path")
-    collection_name = params.get("collection_name", COLLECTION_NAME)
-    shape_name = params.get("shape_name")
-    shape_name_pattern = params.get("shape_name_pattern")
-    explicit_file_path = params.get("file_path")
-    explicit_bbox = params.get("bbox")
-    project_dir = params.get("_project_dir")
+    export_folder = Path(params.get("export_folder"))
+    shape_filename = params.get("shape_filename")
+    shape_filename_pattern = params.get("shape_filename_pattern")
+    bbox = params.get("bbox")
+    bbox_collection_name = params.get("bbox_collection_name")
+    pattern_variables = params.get("pattern_variables")
+    project_dir = Path(params.get("_project_dir"))
 
-    if export_path and not os.path.isabs(export_path):
-        export_path = os.path.join(project_dir, export_path)
-
-    if explicit_file_path or shape_name:
-        exports = [{
-            "shape_name": shape_name or get_shape_name(),
-            "file_path": explicit_file_path,
-            "collection_name": collection_name
-        }]
+    if export_folder and not os.path.isabs(export_folder):
+        export_folder = project_dir / export_folder
+    
+    if shape_filename_pattern:
+        shape_filenames = resolve_pattern_values(shape_filename_pattern, pattern_variables)
     else:
-        exports = build_exports(params)
+        shape_filenames = [shape_filename]
 
-    if export_path:
-        os.makedirs(export_path, exist_ok=True)
+    if export_folder:
+        os.makedirs(export_folder, exist_ok=True)
+    
+    if bbox is None:
+        try:
+            if bbox_collection_name is not None:
+                bbox = calc_bbox(bbox_collection_name)
+            else:
+                bbox = calc_bbox(DEFAULT_BBOX_COLLECTION_NAME)
+        
+        except ValueError:
+            bbox = DEFAULT_BBOX
 
-    for export in exports:
-        current_collection = export.get("collection_name", collection_name)
-        current_shape_name = export.get("shape_name")
+    for shape_filename in shape_filenames:
+        if not shape_filename.endswith(".s"):
+            shape_filename = shape_filename + ".s"
 
-        if current_shape_name is None:
-            current_shape_name = shape_name_pattern.format(**export)
+        export_path = export_folder / shape_filename.replace(".s", ".sd")
 
-        file_path = export.get("file_path")
+        export_sd_file(export_path, shape_filename, bbox)
 
-        if file_path is None:
-            if not export_path:
-                raise ValueError("No export_path specified.")
-
-            file_path = os.path.join(
-                export_path,
-                f"{current_shape_name}.sd"
-            )
-
-        bbox = export.get("bbox", explicit_bbox)
-
-        if bbox is None:
-            bbox = calc_bbox(current_collection)
-
-        export_sd_file(file_path, current_shape_name, bbox)
-
-        print(f"Exported SD file: {file_path}")
-        print(f"Shape: {current_shape_name}")
-        print(f"Bounding box: {bbox}")
+        print(f"Exported SD file: '{export_path}'")

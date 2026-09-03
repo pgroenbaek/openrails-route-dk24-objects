@@ -21,7 +21,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 # This is a Blender Python script.
 #
 # Do not run this manually, this script is called by `run_operations.py`,
-# which reads the JSON configuration and dispatches the requested Blender
+# which reads the JSON configuration and processes the requested Blender
 # operations as they are defined. The `run_operations.py` script can be run
 # from the command line with Blender or directly from Blender's scripting
 # console by pasting in the script with `CONFIG_FILES` configured.

@@ -20,10 +20,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# It is called by `run_operations.py`, which reads the JSON configuration
-# and dispatches the requested Blender operations. The `run_operations.py`
-# script can also be run directly from Blender's scripting console
-# configured with a set of config files by pasting it in.
+# Do not run this manually, this script is called by `run_operations.py`,
+# which reads the JSON configuration and processes the requested Blender
+# operations as they are defined. The `run_operations.py` script can be run
+# from the command line with Blender or directly from Blender's scripting
+# console by pasting in the script with `CONFIG_FILES` configured.
 
 import bpy
 import math
@@ -33,7 +34,6 @@ from mathutils import Vector, Quaternion, Matrix
 
 
 MATERIAL_NAME = "Wire"
-MATERIAL_MSTS_TEXTURE_NAME = "DB_Rails1.png"
 LOD_DISTANCE_METERS = 500
 
 TOP_WIRE_SPAN_RESOLUTION = 6
@@ -126,20 +126,6 @@ def link_object_to_lod_collection(obj, lod_distance, main_collection_name="MAIN"
         main_collection.children.link(dlevel_collection)
 
     dlevel_collection.objects.link(obj)
-
-
-def set_exporter_texture_name(material, texture_name):
-    """
-    Sets the texture name used for a material with the MSTS/ORTS exporter if
-    it is not already set.
-
-    Args:
-        material (bpy.types.Material): Blender material to configure.
-        texture_name (str): Texture name to use for the material.
-    """
-    if hasattr(material, "msts") and hasattr(material.msts, "BaseColorFilepath"):
-        if not material.msts.BaseColorFilepath:
-            material.msts.BaseColorFilepath = texture_name
 
 
 def assign_material(obj, material_name):
@@ -463,7 +449,7 @@ def get_point_on_polyline_by_distance(polyline_points, target_distance):
     return polyline_points[-1].copy()
 
 
-def build_top_wire(name, top_mast_points, bottom_mast_points, lod_distance_meters, material_name, material_msts_texture_name, world_up, top_wire_span_resolution, top_wire_sag_clearance, top_wire_sag_height, profile_top_wire):
+def build_top_wire(name, top_mast_points, bottom_mast_points, lod_distance_meters, material_name, world_up, top_wire_span_resolution, top_wire_sag_clearance, top_wire_sag_height, profile_top_wire):
     """
     Generates a 3D mesh for the top overhead wire in Blender.
 
@@ -480,7 +466,6 @@ def build_top_wire(name, top_mast_points, bottom_mast_points, lod_distance_meter
                                    as a reference for minimum sag clearance.
         lod_distance_meters (float): LOD distance in meters for collection linking.
         material_name (str): Name of the material to create or retrieve.
-        material_msts_texture_name (str): Texture name to use for the material exporter.
         world_up (Vector): World up direction used when generating the wire geometry.
         top_wire_span_resolution (int): Number of segments per wire span.
         top_wire_sag_clearance (float): Minimum clearance between top and bottom wire.
@@ -590,8 +575,6 @@ def build_top_wire(name, top_mast_points, bottom_mast_points, lod_distance_meter
     material = assign_material(obj, material_name)
     material_index = obj.data.materials.find(material.name)
 
-    set_exporter_texture_name(material, material_msts_texture_name)
-
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
 
@@ -616,7 +599,7 @@ def build_top_wire(name, top_mast_points, bottom_mast_points, lod_distance_meter
     return top_wire_points
 
 
-def build_bottom_wire(name, top_mast_points, bottom_mast_points, lod_distance_meters, material_name, material_msts_texture_name, world_up, profile_bottom_wire):
+def build_bottom_wire(name, top_mast_points, bottom_mast_points, lod_distance_meters, material_name, world_up, profile_bottom_wire):
     """
     Generates a 3D mesh for the bottom overhead wire in Blender.
 
@@ -632,7 +615,6 @@ def build_bottom_wire(name, top_mast_points, bottom_mast_points, lod_distance_me
                                    which also serve as its path points.
         lod_distance_meters (float): LOD distance in meters for collection linking.
         material_name (str): Name of the material to create or retrieve.
-        material_msts_texture_name (str): Texture name to use for the material exporter.
         world_up (Vector): World up direction used when generating the wire geometry.
         profile_bottom_wire (list): Profile definition for the bottom wire cross-section.
 
@@ -719,8 +701,6 @@ def build_bottom_wire(name, top_mast_points, bottom_mast_points, lod_distance_me
     material = assign_material(obj, material_name)
     material_index = obj.data.materials.find(material.name)
 
-    set_exporter_texture_name(material, material_msts_texture_name)
-
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
 
@@ -745,7 +725,7 @@ def build_bottom_wire(name, top_mast_points, bottom_mast_points, lod_distance_me
     return bottom_wire_points
 
 
-def build_connectors(name, top_wire_points, bottom_wire_points, lod_distance_meters, material_name, material_msts_texture_name, world_up, connector_distance_meters, connector_radius, connector_collar_radius, connector_collar_length, connector_num_sides):
+def build_connectors(name, top_wire_points, bottom_wire_points, lod_distance_meters, material_name, world_up, connector_distance_meters, connector_radius, connector_collar_radius, connector_collar_length, connector_num_sides):
     """
     Generates a 3D mesh for the connectors (droppers) between the top and bottom wires in Blender.
 
@@ -763,7 +743,6 @@ def build_connectors(name, top_wire_points, bottom_wire_points, lod_distance_met
                                    the path of the bottom overhead wire.
         lod_distance_meters (float): LOD distance in meters for collection linking.
         material_name (str): Name of the material to create or retrieve.
-        material_msts_texture_name (str): Texture name to use for the material exporter.
         world_up (Vector): World up direction used when generating the wire geometry.
         connector_distance_meters (float): Interval distance between connectors.
         connector_radius (float): Radius of the connector shaft.
@@ -914,8 +893,6 @@ def build_connectors(name, top_wire_points, bottom_wire_points, lod_distance_met
     material = assign_material(obj, material_name)
     material_index = obj.data.materials.find(material.name)
 
-    set_exporter_texture_name(material, material_msts_texture_name)
-
     mesh.from_pydata(mesh_vertices, [], mesh_faces)
     mesh.update()
 
@@ -943,8 +920,6 @@ def perform_operation(params):
     Expected keys:
         - "material_name" (str, optional): Material name used for the generated
           catenary components.
-        - "material_msts_texture_name" (str, optional): MSTS texture name
-          associated with the generated material.
         - "lod_distance_meters" (float, optional): Distance in meters used for
           level-of-detail generation.
         - "top_wire_span_resolution" (int, optional): Resolution used when
@@ -983,7 +958,6 @@ def perform_operation(params):
           for which catenary wires are generated.
     """
     material_name = params.get("material_name", MATERIAL_NAME)
-    material_msts_texture_name = params.get("material_msts_texture_name", MATERIAL_MSTS_TEXTURE_NAME)
     lod_distance_meters = params.get("lod_distance_meters", LOD_DISTANCE_METERS)
     top_wire_span_resolution = params.get("top_wire_span_resolution", TOP_WIRE_SPAN_RESOLUTION)
     top_wire_sag_clearance = params.get("top_wire_sag_clearance", TOP_WIRE_SAG_CLEARANCE)
@@ -1032,7 +1006,6 @@ def perform_operation(params):
             bottom_mast_points,
             lod_distance_meters,
             material_name,
-            material_msts_texture_name,
             world_up,
             top_wire_span_resolution,
             top_wire_sag_clearance,
@@ -1046,7 +1019,6 @@ def perform_operation(params):
             bottom_mast_points,
             lod_distance_meters,
             material_name,
-            material_msts_texture_name,
             world_up,
             profile_bottom_wire
         )
@@ -1058,7 +1030,6 @@ def perform_operation(params):
                 bottom_wire_points,
                 lod_distance_meters,
                 material_name,
-                material_msts_texture_name,
                 world_up,
                 connector_distance_meters,
                 connector_radius,

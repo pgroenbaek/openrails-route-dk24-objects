@@ -20,7 +20,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# It reads the JSON configuration and dispatches the requested Blender
+# It reads the JSON configurations and processes the requested Blender
 # operation scripts with their parameters. It can be run from the command
 # line with Blender or directly from Blender's scripting console by pasting
 # in the script with `CONFIG_FILES` configured.
@@ -52,7 +52,7 @@ def run_operations_from_config(config_file_path):
     reset_module = importlib.reload(reset_module)
     reset_function = getattr(reset_module, "perform_operation", None)
     if reset_function is None:
-        print(f"Error: Module '{module_name}.py' does not have a 'perform_operation' function.")
+        print(f"Error: Module 'reset_blender.py' does not have a 'perform_operation' function.")
         return
     reset_function({})
     try:

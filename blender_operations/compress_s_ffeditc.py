@@ -20,28 +20,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This is a Blender Python script.
 #
-# It is called by `run_operations.py`, which reads the JSON configuration
-# and dispatches the requested Blender operations. The `run_operations.py`
-# script can also be run directly from Blender's scripting console
-# configured with a set of config files by pasting it in.
+# Do not run this manually, this script is called by `run_operations.py`,
+# which reads the JSON configuration and processes the requested Blender
+# operations as they are defined. The `run_operations.py` script can be run
+# from the command line with Blender or directly from Blender's scripting
+# console by pasting in the script with `CONFIG_FILES` configured.
 
 import os
 import platform
 import subprocess
 
 
-FFEDITC_PATH = None
 SUPPORTED_EXTENSIONS = (".s",)
-
-
-def ensure_directory_exists(path):
-    """
-    Ensures that a directory exists by creating it if necessary.
-
-    Args:
-        path (str): Directory path to check or create.
-    """
-    os.makedirs(path, exist_ok=True)
 
 
 def wine_path(path):
@@ -66,13 +56,13 @@ def wine_path(path):
     return result.stdout.strip()
 
 
-def compress(input_path: str, output_path: str, ffeditc_exe_path: str) -> bool:
+def compress_shape(input_path: str, output_path: str, ffeditc_exe_path: str) -> bool:
     """
-    Compresses a file using the ffeditc_unicode.exe utility.
+    Compresses a shape using the ffeditc_unicode.exe utility.
 
     Args:
-        input_path (str): Path to the uncompressed input file.
-        output_path (str): Path where the compressed file will be saved.
+        input_path (str): Path to the uncompressed input shape file.
+        output_path (str): Path where the compressed shape will be saved.
         ffeditc_exe_path (str): Path to the ffeditc_unicode.exe executable.
 
     Raises:
@@ -115,7 +105,7 @@ def compress(input_path: str, output_path: str, ffeditc_exe_path: str) -> bool:
         ]
 
     print(
-        "Running ffeditc_unicode: "
+        "Running ffeditc_unicode.exe: "
         + " ".join(
             f'"{part}"'
             if " " in part
@@ -154,73 +144,51 @@ def perform_operation(params):
         params (dict): Compression configuration.
 
     Expected keys:
-        - "ffeditc_path" (str): Path to the ffeditc_unicode.exe executable.
-        - "export_path" (str, optional): Directory to use when resolving
-          relative file paths or for output.
-        - "file_path" (str, optional): Path to a single .s file.
-        - "folder_path" (str, optional): Path to a folder containing .s
+        - "ffeditc_exe_path" (str): Path to the ffeditc_unicode.exe executable.
+        - "shape_folder" (str): Path to a folder containing .s
           files to process.
+        - "shape_filename" (str, optional): Path to a single .s file.
         - "_project_dir" (str, optional): Project directory used to resolve
           relative paths.
     """
+    ffeditc_exe_path = params.get("ffeditc_exe_path")
+    shape_folder = params.get("shape_folder")
+    shape_filename = params.get("shape_filename")
     project_dir = params.get("_project_dir")
-    ffeditc_path = params.get("ffeditc_path", FFEDITC_PATH)
-    export_path = params.get("export_path")
-    file_path = params.get("file_path")
-    folder_path = params.get("folder_path")
 
-    if not ffeditc_path:
-        raise ValueError("No ffeditc_path specified.")
+    if not ffeditc_exe_path:
+        raise ValueError("No 'ffeditc_exe_path' parameter specified.")
 
-    if not project_dir:
-        project_dir = os.getcwd()
+    if shape_folder and not os.path.isabs(shape_folder):
+        shape_folder = project_dir / shape_folder
 
-    if not os.path.isabs(ffeditc_path):
-        ffeditc_path = os.path.join(project_dir, ffeditc_path)
+    shape_files = []
 
-    source_file_paths = []
+    if shape_filename:
+        shape_file = shape_folder / shape_filename
+        shape_files.append(shape_file)
 
-    if file_path and folder_path:
-        raise ValueError("Cannot specify both 'file_path' and 'folder_path'.")
+    elif shape_folder:
+        if not os.path.isdir(shape_folder):
+            raise FileNotFoundError(f"Folder not found: {shape_folder}")
 
-    elif file_path:
-        source_file_paths.append(file_path)
-
-    elif folder_path:
-        if not os.path.isabs(folder_path):
-            folder_path = os.path.join(project_dir, folder_path)
-
-        if not os.path.isdir(folder_path):
-            raise FileNotFoundError(f"Folder not found: {folder_path}")
-
-        for root, _, files in os.walk(folder_path):
+        for root, _, files in os.walk(shape_folder):
             for filename in files:
                 if filename.lower().endswith(SUPPORTED_EXTENSIONS):
-                    source_file_paths.append(os.path.join(root, filename))
+                    shape_files.append(os.path.join(root, filename))
 
     else:
-        raise ValueError("No 'file_path' or 'folder_path' specified.")
+        raise ValueError("No 'shape_filename' or 'shape_folder' specified.")
 
-    if export_path:
-        if not os.path.isabs(export_path):
-            export_path = os.path.join(project_dir, export_path)
-
-        ensure_directory_exists(export_path)
-
-    if not source_file_paths:
-        print(f"No supported '.s' files found to process in '{folder_path}'")
+    if not shape_files:
+        print(f"No supported '.s' files found to process in '{shape_folder}'")
         return
 
-    for current_input_path in source_file_paths:
-        if not os.path.isabs(current_input_path):
-            if export_path:
-                current_input_path = os.path.join(export_path, current_input_path)
-            else:
-                current_input_path = os.path.join(project_dir, current_input_path)
+    for shape_file in shape_files:
+        if not os.path.isabs(shape_file):
+            shape_file = os.path.join(project_dir, shape_file)
 
-        if not os.path.isfile(current_input_path):
-            raise FileNotFoundError(f"Source file not found: {current_input_path}")
+        if not os.path.isfile(shape_file):
+            raise FileNotFoundError(f"Shape file not found: {shape_file}")
 
-        current_output_path = current_input_path
-
-        compress(current_input_path, current_output_path, ffeditc_path)
+        compress_shape(shape_file, shape_file, ffeditc_exe_path)
