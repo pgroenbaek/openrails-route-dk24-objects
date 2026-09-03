@@ -3,7 +3,6 @@
         "operation_type": "make_wire_overhead",
         "parameters": {
             "material_name": "Wire",
-            "material_msts_texture_name": "DB_Rails1.png",
             "lod_distance_meters": 500,
             "world_folder": "/media/peter/T7 Shield/ORTS/Content/PGA DK24/ROUTES/OR_DK24/WORLD",
             "reference_position": [-874.908, 14.4113, -828.282],
@@ -55,7 +54,6 @@
         "operation_type": "make_wire",
         "parameters": {
             "material_name": "ReturnWire",
-            "material_msts_texture_name": "DB_Rails1.png",
             "lod_distance_meters": 500,
             "world_folder": "/media/peter/T7 Shield/ORTS/Content/PGA DK24/ROUTES/OR_DK24/WORLD",
             "reference_position": [-874.908, 14.4113, -828.282],
@@ -114,16 +112,23 @@
     {
         "operation_type": "export_s",
         "parameters": {
-            "export_path": "dist/dk_wire/shapes",
-            "shape_filename": "PGA_DKWire_Odense_162_7.s"
+            "use_dds": false,
+            "export_folder": "dist/dk_wire/shapes",
+            "shape_filename": "PGA_DKWire_Odense_162_7.s",
+            "materials": [
+                {
+                    "material_name": "Wire",
+                    "texture_filename": "DB_Rails1.png"
+                }
+            ]
         }
     },
     {
         "operation_type": "compress_s_ffeditc",
         "parameters": {
             "ffeditc_exe_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
-            "input_folder": "dist/dk_wire/shapes",
-            "input_filename": "PGA_DKWire_Odense_162_7.s"
+            "shape_folder": "dist/dk_wire/shapes",
+            "shape_filename": "PGA_DKWire_Odense_162_7.s"
         }
     }
 ]

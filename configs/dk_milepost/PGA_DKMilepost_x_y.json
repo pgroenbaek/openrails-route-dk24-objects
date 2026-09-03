@@ -13,12 +13,12 @@
     {
         "operation_type": "export_sd",
         "parameters": {
-            "export_path": "dist/dk_milepost/shapes",
+            "export_folder": "dist/dk_milepost/shapes",
             "shape_filename_pattern": "PGA_DKMilepost_{kilometers:03d}_{meters:d}.s",
             "bbox_collection_name": "MAIN_0150",
             "pattern_variables": {
                 "kilometers": {
-                    "type": "integer",
+                    "type": "number",
                     "values": [
                         {
                             "number_start": 0,
@@ -27,7 +27,7 @@
                     ]
                 },
                 "meters": {
-                    "type": "integer",
+                    "type": "number",
                     "values": [
                         {
                             "number_start": 0,
@@ -42,13 +42,18 @@
     {
         "operation_type": "export_s",
         "parameters": {
+            "use_dds": false,
             "export_folder": "dist/dk_milepost/shapes",
-            "material_name": "PGA_DKMilepost_x_y",
             "shape_filename_pattern": "PGA_DKMilepost_{kilometers:03d}_{meters:d}.s",
-            "texture_filename_pattern": "PGA_DKMilepost_{kilometers:03d}_{meters:d}.ace",
+            "materials": [
+                {
+                    "material_name": "PGA_DKMilepost_x_y",
+                    "texture_filename_pattern": "PGA_DKMilepost_{kilometers:03d}_{meters:d}.png"
+                }
+            ],
             "pattern_variables": {
                 "kilometers": {
-                    "type": "integer",
+                    "type": "number",
                     "values": [
                         {
                             "number_start": 0,
@@ -57,7 +62,7 @@
                     ]
                 },
                 "meters": {
-                    "type": "integer",
+                    "type": "number",
                     "values": [
                         {
                             "number_start": 0,
@@ -73,7 +78,7 @@
         "operation_type": "compress_s_ffeditc",
         "parameters": {
             "ffeditc_exe_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
-            "input_folder": "dist/dk_milepost/shapes"
+            "shape_folder": "dist/dk_milepost/shapes"
         }
     },
     {
@@ -101,7 +106,7 @@
                             ],
                             "pattern_variables": {
                                 "kilometers": {
-                                    "type": "integer",
+                                    "type": "number",
                                     "values": [
                                         {
                                             "number_start": 0,
@@ -110,7 +115,7 @@
                                     ]
                                 },
                                 "meters": {
-                                    "type": "integer",
+                                    "type": "number",
                                     "values": [
                                         {
                                             "number_start": 0,

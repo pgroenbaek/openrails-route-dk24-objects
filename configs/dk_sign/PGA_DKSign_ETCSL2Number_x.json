@@ -2,8 +2,8 @@
     {
         "operation_type": "import_blend",
         "parameters": {
-            "input_folder": "blender_fragments/dk_sign",
-            "input_filename": "PGA_DKSign_ETCSL2Number_x_L.blend",
+            "import_folder": "blender_fragments/dk_sign",
+            "import_filename": "PGA_DKSign_ETCSL2Number_x_L.blend",
             "collection_name": "MAIN",
             "location": [0.0, 0.0, 0.0],
             "rotation": [0.0, 0.0, 0.0],
@@ -36,10 +36,15 @@
     {
         "operation_type": "export_s",
         "parameters": {
+            "use_dds": false,
             "export_folder": "dist/dk_sign_etcsl2number/shapes",
-            "material_name": "PGA_DKSign_ETCSL2Number_x",
             "shape_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}_L.s",
-            "texture_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}.ace",
+            "materials": [
+                {
+                    "material_name": "PGA_DKSign_ETCSL2Number_x",
+                    "texture_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}.png"
+                }
+            ],
             "pattern_variables": {
                 "etcsnumber": {
                     "type": "string",
@@ -64,8 +69,8 @@
     {
         "operation_type": "import_blend",
         "parameters": {
-            "input_folder": "blender_fragments/dk_sign",
-            "input_filename": "PGA_DKSign_ETCSL2Number_x_R.blend",
+            "import_folder": "blender_fragments/dk_sign",
+            "import_filename": "PGA_DKSign_ETCSL2Number_x_R.blend",
             "collection_name": "MAIN",
             "location": [0.0, 0.0, 0.0],
             "rotation": [0.0, 0.0, 0.0],
@@ -98,10 +103,15 @@
     {
         "operation_type": "export_s",
         "parameters": {
+            "use_dds": false,
             "export_folder": "dist/dk_sign_etcsl2number/shapes",
-            "material_name": "PGA_DKSign_ETCSL2Number_x",
             "shape_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}_R.s",
-            "texture_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}.ace",
+            "materials": [
+                {
+                    "material_name": "PGA_DKSign_ETCSL2Number_x",
+                    "texture_filename_pattern": "PGA_DKSign_ETCSL2Number_{etcsnumber}.png"
+                }
+            ],
             "pattern_variables": {
                 "etcsnumber": {
                     "type": "string",
@@ -123,7 +133,7 @@
         "operation_type": "compress_s_ffeditc",
         "parameters": {
             "ffeditc_exe_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
-            "input_folder": "dist/dk_sign_etcsl2number/shapes"
+            "shape_folder": "dist/dk_sign_etcsl2number/shapes"
         }
     },
     {
