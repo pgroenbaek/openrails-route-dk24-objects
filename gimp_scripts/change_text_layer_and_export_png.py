@@ -56,77 +56,44 @@ def apply_filename_replacements(value, replacements):
     return value
 
 
-def resolve_pattern_values(pattern, pattern_variables, is_filename=True):
+def generate_variable_combinations(pattern_variables):
     """
-    Resolve a pattern into all possible concrete values.
+    Generates all possible combinations of values for all defined pattern variables.
 
     Args:
-        pattern (str): Pattern containing placeholders such as `{variable}`.
         pattern_variables (dict): Variable definitions containing possible
             values and optional transformation rules.
-        is_filename (bool): Whether the pattern is a filename. When False 
-            the `filename_replacements` configuration is not applied.
 
     Returns:
-        list[str]: All fully resolved pattern strings.
+        list[dict]: A list of dictionaries, where each dictionary represents
+        a unique combination of variable assignments (e.g., {'var1': 'value1', 'var2': 1}).
     """
     if not pattern_variables:
-        return [pattern]
+        return [{}]
 
-    formatter = string.Formatter()
-    variable_names = list(dict.fromkeys(
-        field_name
-        for _, field_name, _, _ in formatter.parse(pattern)
-        if field_name is not None
-    ))
+    all_variable_values = {}
 
-    if not variable_names:
-        return [pattern]
-
-    variable_value_lists = []
-
-    for variable_name in variable_names:
-        variable_config = pattern_variables.get(variable_name)
-
-        if not variable_config:
-            raise ValueError(
-                "Pattern variable '%s' defined in pattern "
-                "'%s' was not found in pattern_variables."
-                % (variable_name, pattern)
-            )
-
+    for variable_name, variable_config in pattern_variables.items():
         variable_type = variable_config.get("type", "string")
-        filename_replacements = variable_config.get("filename_replacements", {})
-
-        if filename_replacements and variable_type != "string":
-            raise ValueError(
-                "Cannot use 'filename_replacements' in variable '%s' "
-                "for variable types other than 'string'."
-                % variable_name
-            )
 
         values = []
-
-        for value in variable_config["values"]:
-            if isinstance(value, (int, long, float)):
+        for value_def in variable_config["values"]:
+            if isinstance(value_def, (int, long, float)):
                 if variable_type != "number":
-                    raise ValueError("Invalid value '%s' for value of type 'number'." % value)
+                    raise ValueError("Invalid value '%s' for value of type 'number'." % value_def)
                 
-                values.append(value)
-
-            elif isinstance(value, basestring):
+                values.append(value_def)
+            
+            elif isinstance(value_def, basestring):
                 if variable_type != "string":
-                    raise ValueError("Invalid value '%s' for value of type 'string'." % value)
-
-                if is_filename:
-                    value = apply_filename_replacements(value, filename_replacements)
-
-                values.append(value)
-
-            elif isinstance(value, dict):
-                number_start = value.get("number_start")
-                number_stop = value.get("number_stop")
-                number_step = value.get("number_step", 1)
+                    raise ValueError("Invalid value '%s' for value of type 'string'." % value_def)
+                
+                values.append(value_def)
+            
+            elif isinstance(value_def, dict):
+                number_start = value_def.get("number_start")
+                number_stop = value_def.get("number_stop")
+                number_step = value_def.get("number_step", 1)
 
                 if number_start is None or number_stop is None:
                     raise ValueError(
@@ -136,7 +103,7 @@ def resolve_pattern_values(pattern, pattern_variables, is_filename=True):
                     )
 
                 for number in range(number_start, number_stop + 1, number_step):
-                    if "pattern" in value:
+                    if "pattern" in value_def:
                         if variable_type != "string":
                             raise ValueError(
                                 "Invalid value expression in variable '%s', "
@@ -144,28 +111,46 @@ def resolve_pattern_values(pattern, pattern_variables, is_filename=True):
                                 % variable_name
                             )
 
-                        resolved_value = value["pattern"].format(number=number)
-
-                        if is_filename:
-                            resolved_value = apply_filename_replacements(resolved_value, filename_replacements)
-
+                        resolved_value = value_def["pattern"].format(number=number)
                         values.append(resolved_value)
-                    
                     else:
                         values.append(str(number) if variable_type == "string" else number)
-
             else:
                 raise TypeError(
                     "Unsupported value type for variable '%s': %s"
-                    % (variable_name, type(value).__name__)
+                    % (variable_name, type(value_def).__name__)
                 )
+        all_variable_values[variable_name] = values
 
-        variable_value_lists.append(values)
+    variable_names = sorted(all_variable_values.keys())
 
-    return [
-        pattern.format(**dict(zip(variable_names, combination)))
-        for combination in itertools.product(*variable_value_lists)
-    ]
+    if not variable_names:
+        return [{}]
+    
+    sorted_value_lists = [all_variable_values[name] for name in variable_names]
+
+    all_combinations = []
+
+    for combination_tuple in itertools.product(*sorted_value_lists):
+        combination_dict = dict(zip(variable_names, combination_tuple))
+        all_combinations.append(combination_dict)
+    
+    return all_combinations
+
+
+def format_pattern_with_combination(pattern, combination_dict):
+    """
+    Formats a pattern string using the provided variable combination.
+
+    Args:
+        pattern (str): The pattern string with placeholders.
+        combination_dict (dict): A dictionary mapping variable names to their values
+                                 for a specific combination.
+
+    Returns:
+        str: The formatted string.
+    """
+    return pattern.format(**combination_dict)
 
 
 def find_text_layer(image, text_layer_name):
@@ -319,53 +304,67 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
             "Images will be exported without text changes."
         )
 
-    export_filenames = resolve_pattern_values(export_filename_pattern, pattern_variables)
-    export_text_layer_replacements = {}
-    export_text_layer_configs = {}
+    all_combinations = generate_variable_combinations(pattern_variables)
 
+    if not all_combinations:
+        print >> sys.stderr, "Warning: No combinations of pattern variables generated. No images will be exported."
+        return
+
+
+    text_layer_patterns_map = {}
+    export_text_layer_configs = {}
+    
     for text_layer_replacement in text_layer_replacements:
         text_layer_name = text_layer_replacement.get("text_layer_name")
         text_layer_config = text_layer_replacement.get("text_layer_config", {})
         new_text_pattern = text_layer_replacement.get("new_text_pattern")
 
         if not text_layer_name:
-            raise ValueError("Text layer replacement is missing 'new_text_pattern'.")
-            
-        if new_text_pattern:
-            export_text_layer_texts = resolve_pattern_values(
-                new_text_pattern,
-                pattern_variables,
-                is_filename=False
-            )
-
-        else:
+            raise ValueError("Text layer replacement is missing 'text_layer_name'.")
+        
+        if not new_text_pattern:
             raise ValueError(
                 "Text layer replacement with name '%s' is missing 'new_text_pattern'."
                 % text_layer_name
             )
         
-        if len(export_filenames) != len(export_text_layer_texts):
-            raise ValueError(
-                "Text layer '%s' produced %d text values, but "
-                "%d export filenames were generated. "
-                "The number of text values must match the number of export filenames."
-                % (text_layer_name, len(export_text_layer_texts), len(export_filenames))
-            )
-
-        export_text_layer_replacements[text_layer_name] = export_text_layer_texts
+        text_layer_patterns_map[text_layer_name] = new_text_pattern
         export_text_layer_configs[text_layer_name] = text_layer_config
+
+    resolved_export_filenames = []
+    resolved_text_layer_texts_by_name = {
+        name: [] for name in text_layer_patterns_map.keys()
+    }
+
+    for combination_dict in all_combinations:
+        filename_format_dict = {}
+        for var_name, var_value in combination_dict.items():
+            current_var_config = pattern_variables.get(var_name, {})
+            filename_replacements = current_var_config.get("filename_replacements", {})
+            
+            if isinstance(var_value, basestring) and filename_replacements:
+                filename_format_dict[var_name] = apply_filename_replacements(var_value, filename_replacements)
+            else:
+                filename_format_dict[var_name] = var_value
+
+        resolved_filename = format_pattern_with_combination(export_filename_pattern, filename_format_dict)
+        resolved_export_filenames.append(resolved_filename)
+
+        for text_layer_name, new_text_pattern in text_layer_patterns_map.items():
+            resolved_text = format_pattern_with_combination(new_text_pattern, combination_dict)
+            resolved_text_layer_texts_by_name[text_layer_name].append(resolved_text)
 
     if export_folder:
         if not os.path.exists(export_folder):
             os.makedirs(export_folder)
     
-    for idx, export_filename in enumerate(export_filenames):
+    for idx, export_filename in enumerate(resolved_export_filenames):
         if not export_filename.endswith(".png"):
             export_filename = export_filename + ".png"
         
-        export_path = export_folder + "/" + export_filename
+        export_path = os.path.join(export_folder, export_filename)
 
-        for text_layer_name in export_text_layer_replacements.keys():
+        for text_layer_name, text_values_for_layer in resolved_text_layer_texts_by_name.items():
             text_layer = find_text_layer(image, text_layer_name)
 
             if text_layer is None:
@@ -376,7 +375,7 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
                 )
                 continue
             
-            new_text = export_text_layer_replacements[text_layer_name][idx]
+            new_text = text_values_for_layer[idx]
             text_layer_config = export_text_layer_configs[text_layer_name]
 
             set_text_layer_text(
