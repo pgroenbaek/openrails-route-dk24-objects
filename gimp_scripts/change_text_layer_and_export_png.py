@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-# This is a GIMP Python-fu script.
+# This is a GIMP Python-fu script (Python 2).
 #
 # Do not run this manually, this script is called by `process_image_gimp.py`,
 # which reads the JSON configuration and converts it into the positional arguments
@@ -29,112 +29,143 @@ from gimpfu import *
 import os
 import sys
 import json
+import string
+import itertools
 import traceback
 
 
-def ensure_directory_exists(path):
+def apply_filename_replacements(value, replacements):
     """
-    Ensures that a directory exists by creating it if necessary.
+    Applies a set of string replacements to a value.
 
     Args:
-        path (str): Directory path to check or create.
-    """
-    if path and not os.path.exists(path):
-        os.makedirs(path, exist_ok=True)
-
-
-def sanitize_value(value, replacements):
-    """
-    Applies configured string replacements to a value.
-
-    Args:
-        value (str): Value to sanitize.
-        replacements (dict): Mapping of strings to replacement strings.
+        value (str): The value to apply replacements to. Non-string values are
+        converted to strings.
+        replacements (dict[str, str]): A dictionary mapping substrings to their
+        replacement values.
 
     Returns:
-        str: Sanitized value.
+        str: The resulting string after all replacements have been applied.
     """
-    value = str(value)
-
-    for search, replace in replacements.items():
-        value = value.replace(search, replace)
-
+    if not isinstance(value, basestring):
+        value = str(value)
+    
+    for old, new in replacements.items():
+        value = value.replace(old, new)
+    
     return value
 
 
-def build_exports(params):
+def resolve_pattern_values(pattern, pattern_variables, is_filename=True):
     """
-    Builds the list of exports from the operation parameters.
+    Resolve a pattern into all possible concrete values.
 
-    Supported formats:
-
-        "exports": [
-            {"value": "foo"},
-            {"value": "bar"}
-        ]
-
-    or:
-
-        "values": [
-            "foo",
-            "bar"
-        ]
-
-    or:
-
-        "groups": [
-            {
-                "prefix": "DK-Gantry-Fe",
-                "start": 1,
-                "stop": 3,
-                "step": 1,
-                "number_format": "03d"
-            }
-        ]
+    Args:
+        pattern (str): Pattern containing placeholders such as `{variable}`.
+        pattern_variables (dict): Variable definitions containing possible
+            values and optional transformation rules.
+        is_filename (bool): Whether the pattern is a filename. When False 
+            the `filename_replacements` configuration is not applied.
 
     Returns:
-        list: List of dictionaries containing export variables.
+        list[str]: All fully resolved pattern strings.
     """
+    if not pattern_variables:
+        return [pattern]
 
-    exports = params.get("exports")
+    formatter = string.Formatter()
+    variable_names = list(dict.fromkeys(
+        field_name
+        for _, field_name, _, _ in formatter.parse(pattern)
+        if field_name is not None
+    ))
 
-    if exports is not None:
-        return exports
+    if not variable_names:
+        return [pattern]
 
-    values = params.get("values")
+    variable_value_lists = []
 
-    if values is not None:
-        return [
-            {
-                "value": value
-            }
-            for value in values
-        ]
+    for variable_name in variable_names:
+        variable_config = pattern_variables.get(variable_name)
 
-    groups = params.get("groups")
+        if not variable_config:
+            raise ValueError(
+                "Pattern variable '%s' defined in pattern "
+                "'%s' was not found in pattern_variables."
+                % (variable_name, pattern)
+            )
 
-    if groups is not None:
-        exports = []
+        variable_type = variable_config.get("type", "string")
+        filename_replacements = variable_config.get("filename_replacements", {})
 
-        for group in groups:
-            prefix = group.get("prefix", "")
-            start = group["start"]
-            stop = group["stop"]
-            step = group.get("step", 1)
-            number_format = group.get("number_format", "03d")
+        if filename_replacements and variable_type != "string":
+            raise ValueError(
+                "Cannot use 'filename_replacements' in variable '%s' "
+                "for variable types other than 'string'."
+                % variable_name
+            )
 
-            for number in range(start, stop + 1, step):
-                exports.append(
-                    {
-                        "prefix": prefix,
-                        "number": number,
-                        "value": f"{prefix}-{number:{number_format}}"
-                    }
+        values = []
+
+        for value in variable_config["values"]:
+            if isinstance(value, (int, long, float)):
+                if variable_type != "number":
+                    raise ValueError("Invalid value '%s' for value of type 'number'." % value)
+                
+                values.append(value)
+
+            elif isinstance(value, basestring):
+                if variable_type != "string":
+                    raise ValueError("Invalid value '%s' for value of type 'string'." % value)
+
+                if is_filename:
+                    value = apply_filename_replacements(value, filename_replacements)
+
+                values.append(value)
+
+            elif isinstance(value, dict):
+                number_start = value.get("number_start")
+                number_stop = value.get("number_stop")
+                number_step = value.get("number_step", 1)
+
+                if number_start is None or number_stop is None:
+                    raise ValueError(
+                        "Invalid value expression in variable '%s', "
+                        "missing 'number_start' or 'number_stop'."
+                        % variable_name
+                    )
+
+                for number in range(number_start, number_stop + 1, number_step):
+                    if "pattern" in value:
+                        if variable_type != "string":
+                            raise ValueError(
+                                "Invalid value expression in variable '%s', "
+                                "expressions cannot contain 'pattern' unless variable type is 'string'."
+                                % variable_name
+                            )
+
+                        resolved_value = value["pattern"].format(number=number)
+
+                        if is_filename:
+                            resolved_value = apply_filename_replacements(resolved_value, filename_replacements)
+
+                        values.append(resolved_value)
+                    
+                    else:
+                        values.append(str(number) if variable_type == "string" else number)
+
+            else:
+                raise TypeError(
+                    "Unsupported value type for variable '%s': %s"
+                    % (variable_name, type(value).__name__)
                 )
 
-        return exports
+        variable_value_lists.append(values)
 
-    raise ValueError("No exports, values, or groups specified.")
+    return [
+        pattern.format(**dict(zip(variable_names, combination)))
+        for combination in itertools.product(*variable_value_lists)
+    ]
 
 
 def find_text_layer(image, text_layer_name):
@@ -151,7 +182,6 @@ def find_text_layer(image, text_layer_name):
     Returns:
         GIMP text layer or None.
     """
-
     for layer in image.layers:
         if layer.name == text_layer_name and pdb.gimp_item_is_text_layer(layer):
             return layer
@@ -159,56 +189,91 @@ def find_text_layer(image, text_layer_name):
     return None
 
 
-def export_png(
-    image,
-    drawable,
-    output_path,
-    png_compression
+def set_text_layer_text(
+    textlayer,
+    text,
+    font="Nimbus Sans Bold",
+    font_size=48,
+    letter_spacing=0,
+    color=gimpcolor.RGB(0,0,0)
 ):
     """
-    Exports the current GIMP image to PNG.
+    Sets the text and styling for a text layer in GIMP.
+
+    Args:
+        textlayer (gimp.Layer): The text layer to modify.
+        text (str): The text to set for the layer.
+        font (str, optional): The font to use for the text. Default is "NimbusSanL Bold".
+        font_size (int, optional): The font size for the text. Default is 48.
+        letter_spacing (int, optional): The letter spacing for the text. Default is 0.
+        color (gimpcolor.RGB, optional): The color of the text. Default is black (RGB(0, 0, 0)).
+    """
+    pdb.gimp_text_layer_set_text(textlayer, text)
+    pdb.gimp_text_layer_set_font(textlayer, font)
+    pdb.gimp_text_layer_set_color(textlayer, color)
+    pdb.gimp_text_layer_set_font_size(textlayer, font_size, 0)
+    pdb.gimp_text_layer_set_letter_spacing(textlayer, letter_spacing)
+
+
+def export_png(image, drawable, output_path, png_compression):
+    """
+    Exports the current GIMP image to a PNG file.
+
+    The image is duplicated before export so that merging visible layers
+    does not modify the original image. The visible layers of the duplicate
+    are merged and the resulting image is saved to the specified output path.
 
     Args:
         image:
-            Current GIMP image.
+            GIMP image to export.
 
         drawable:
-            Current GIMP drawable.
+            Currently active drawable. Included for compatibility with
+            the GIMP file-saving API.
 
-        output_path:
-            Full output PNG path.
+        output_path (str):
+            Full path to the output PNG file.
 
-        png_compression:
+        png_compression (int):
             PNG compression level from 0 to 9.
+
+    Raises:
+        RuntimeError:
+            If the image cannot be duplicated or the visible layers cannot
+            be merged.
     """
-    ensure_directory_exists(os.path.dirname(output_path))
+    temporary_image = None
 
-    png_compression = max(0, min(9, int(png_compression)))
+    try:
+        temporary_image = pdb.gimp_image_duplicate(image)
 
-    pdb.file_png_save(
-        image,
-        drawable,
-        output_path,
-        output_path,
-        0,
-        png_compression,
-        0,
-        0,
-        0,
-        0,
-        0
-    )
+        if temporary_image is None:
+            raise RuntimeError("Could not duplicate the GIMP image.")
 
-    print("  Image exported to PNG: %s with compression %d" % (output_path, png_compression))
+        export_layer = pdb.gimp_image_merge_visible_layers(
+            temporary_image,
+            CLIP_TO_IMAGE
+        )
+
+        if export_layer is None:
+            raise RuntimeError("Could not merge the visible GIMP layers.")
+
+        pdb.gimp_file_save(
+            temporary_image,
+            export_layer,
+            output_path,
+            "?"
+        )
+
+    finally:
+        if temporary_image is not None:
+            try:
+                pdb.gimp_image_delete(temporary_image)
+            except Exception:
+                pass
 
 
-def python_fu_change_text_layer_and_export_png(
-    image,
-    drawable,
-    base_output_dir,
-    export_config_json_str,
-    png_compression=9
-):
+def python_fu_change_text_layer_and_export_png(image, drawable, args):
     """
     Changes text layers in an XCF image based on a configuration
     and exports multiple PNGs.
@@ -220,121 +285,129 @@ def python_fu_change_text_layer_and_export_png(
         drawable:
             Current GIMP drawable.
 
-        base_output_dir:
-            Base directory where exported PNG files are saved.
-
-        export_config_json_str:
-            JSON string containing the export configuration.
-
-        png_compression:
-            PNG compression level from 0 to 9.
+        args:
+            Arguments passed to the script.
     """
     try:
-        export_config = json.loads(export_config_json_str)
+        args = json.loads(args)
 
     except (ValueError, TypeError) as e:
-        print("Error: Invalid export configuration JSON: %s" % e, file=sys.stderr)
+        print >> sys.stderr, "Error: Invalid args JSON: %s" % e
         raise
 
-    replacements = export_config.get("value_replacements", {})
-    output_filename_pattern = export_config.get("output_filename_pattern")
-    text_layers_config = export_config.get("text_layers_config", [])
+    export_folder = args.get("export_folder")
+    export_filename_pattern = args.get("export_filename_pattern")
+    text_layer_replacements = args.get("text_layer_replacements", {})
+    pattern_variables = args.get("pattern_variables", {})
+    png_compression = args.get("png_compression", 9)
 
-    if not output_filename_pattern:
-        raise ValueError("'output_filename_pattern' is required in export_config.")
+    if not export_folder:
+        raise ValueError("Parameter 'export_folder' is required.")
 
-    if not text_layers_config:
-        print(
-            "Warning: No 'text_layers_config' provided. "
-            "Images will be exported without text changes.",
-            file=sys.stderr
+    if not export_filename_pattern:
+        raise ValueError("Parameter 'export_filename_pattern' is required.")
+    
+    if not pattern_variables:
+        print >> sys.stderr, (
+            "Warning: No 'pattern_variables' provided. "
+            "Images will be exported without text and filename changes."
+        )
+    
+    if not text_layer_replacements:
+        print >> sys.stderr, (
+            "Warning: No 'text_layer_replacements' provided. "
+            "Images will be exported without text changes."
         )
 
-    exports = build_exports(export_config)
+    export_filenames = resolve_pattern_values(export_filename_pattern, pattern_variables)
+    export_text_layer_replacements = {}
+    export_text_layer_configs = {}
 
-    for export_index, export_vars in enumerate(exports, start=1):
-        current_values = {
-            key: sanitize_value(
-                value,
-                replacements
+    for text_layer_replacement in text_layer_replacements:
+        text_layer_name = text_layer_replacement.get("text_layer_name")
+        text_layer_config = text_layer_replacement.get("text_layer_config", {})
+        new_text_pattern = text_layer_replacement.get("new_text_pattern")
+
+        if not text_layer_name:
+            raise ValueError("Text layer replacement is missing 'new_text_pattern'.")
+            
+        if new_text_pattern:
+            export_text_layer_texts = resolve_pattern_values(
+                new_text_pattern,
+                pattern_variables,
+                is_filename=False
             )
-            for key, value in export_vars.items()
-        }
 
-        print("Processing export %d with values: %s" % (export_index, current_values))
-
-        try:
-            relative_output_filename = output_filename_pattern.format(**current_values)
-
-        except KeyError as e:
-            print(
-                "Error formatting output filename. "
-                "Missing value: %s"
-                % e,
-                file=sys.stderr
+        else:
+            raise ValueError(
+                "Text layer replacement with name '%s' is missing 'new_text_pattern'."
+                % text_layer_name
             )
-            raise
+        
+        if len(export_filenames) != len(export_text_layer_texts):
+            raise ValueError(
+                "Text layer '%s' produced %d text values, but "
+                "%d export filenames were generated. "
+                "The number of text values must match the number of export filenames."
+                % (text_layer_name, len(export_text_layer_texts), len(export_filenames))
+            )
 
-        full_output_file_path = os.path.join(base_output_dir, relative_output_filename)
+        export_text_layer_replacements[text_layer_name] = export_text_layer_texts
+        export_text_layer_configs[text_layer_name] = text_layer_config
 
-        ensure_directory_exists(os.path.dirname(full_output_file_path))
+    if export_folder:
+        if not os.path.exists(export_folder):
+            os.makedirs(export_folder)
+    
+    for idx, export_filename in enumerate(export_filenames):
+        if not export_filename.endswith(".png"):
+            export_filename = export_filename + ".png"
+        
+        export_path = export_folder + "/" + export_filename
 
-        for config in text_layers_config:
-            text_layer_name_pattern = config.get("text_layer_name_pattern")
-            new_text_pattern = config.get("new_text_pattern")
-
-            if not text_layer_name_pattern or not new_text_pattern:
-                print(
-                    "Warning: Skipping malformed "
-                    "text_layer_config: %s"
-                    % config,
-                    file=sys.stderr
-                )
-                continue
-
-            try:
-                text_layer_name = text_layer_name_pattern.format(**current_values)
-                new_text = new_text_pattern.format(**current_values)
-
-            except KeyError as e:
-                print(
-                    "Warning: Could not format text layer "
-                    "configuration. Missing value: %s"
-                    % e,
-                    file=sys.stderr
-                )
-                raise
-
+        for text_layer_name in export_text_layer_replacements.keys():
             text_layer = find_text_layer(image, text_layer_name)
 
             if text_layer is None:
-                print(
+                print >> sys.stderr, (
                     "Warning: Text layer '%s' not found. "
                     "Cannot change text."
-                    % text_layer_name,
-                    file=sys.stderr
+                    % text_layer_name
                 )
                 continue
+            
+            new_text = export_text_layer_replacements[text_layer_name][idx]
+            text_layer_config = export_text_layer_configs[text_layer_name]
 
-            pdb.gimp_text_layer_set_text(text_layer, new_text)
+            set_text_layer_text(
+                text_layer,
+                new_text,
+                font=text_layer_config.get("font", "Nimbus Sans Bold"),
+                font_size=text_layer_config.get("font_size", 48),
+                letter_spacing=text_layer_config.get("letter_spacing", 0.0),
+                color=gimpcolor.RGB(*text_layer_config.get("color", [0, 0, 0]))
+            )
 
-            print("  Text layer '%s' updated to: '%s'" % (text_layer_name, new_text))
-
+            print("Text layer '%s' updated to: '%s'" % (text_layer_name, new_text))
+        
         try:
             export_png(
                 image,
                 drawable,
-                full_output_file_path,
+                export_path,
                 png_compression
             )
 
         except Exception as e:
-            print("Error exporting image to PNG '%s': %s" % (full_output_file_path, e), file=sys.stderr)
-
+            print >> sys.stderr, (
+                "Error exporting image to PNG '%s': %s"
+                % (export_path, e)
+            )
             traceback.print_exc()
             raise
 
-        print("Completed export %d: %s" % (export_index, full_output_file_path))
+        print("Image exported: %s" % (export_path))
+
 
 
 register(
@@ -357,21 +430,9 @@ register(
     [
         (
             PF_STRING,
-            "base_output_dir",
-            "Base Output Directory",
+            "args",
+            "Arguments passed to the script",
             ""
-        ),
-        (
-            PF_STRING,
-            "export_config_json_str",
-            "Export Configuration (JSON)",
-            "{}"
-        ),
-        (
-            PF_INT,
-            "png_compression",
-            "PNG Compression (0-9)",
-            9
         )
     ],
     [],

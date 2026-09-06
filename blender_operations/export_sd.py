@@ -281,6 +281,7 @@ def perform_operation(params):
         - "bbox" (str, optional): Bounding box to use, defaults to bounds of collection "MAIN".
         - "bbox_collection_name" (str, optional): Collection used for calculating
           the bounding box, defaults to "MAIN".
+        - "pattern_variables" (dict): Configuration of the variables used in `shape_filename_pattern`.
         - "_project_dir" (Path): Project root directory used to resolve
           relative file paths.
     """

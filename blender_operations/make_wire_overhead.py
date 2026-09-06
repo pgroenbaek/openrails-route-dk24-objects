@@ -311,7 +311,14 @@ def read_mast_data(masts_config, world_folder):
     return mast_data
 
 
-def calculate_mast_wire_positions(masts_config, mast_types, tile_size, reference_position, reference_tile, world_folder):
+def calculate_mast_wire_positions(
+    masts_config,
+    mast_types,
+    tile_size,
+    reference_position,
+    reference_tile,
+    world_folder
+):
     """
     Calculates the 3D attachment points for top and bottom wires on masts.
 
@@ -449,7 +456,18 @@ def get_point_on_polyline_by_distance(polyline_points, target_distance):
     return polyline_points[-1].copy()
 
 
-def build_top_wire(name, top_mast_points, bottom_mast_points, lod_distance_meters, material_name, world_up, top_wire_span_resolution, top_wire_sag_clearance, top_wire_sag_height, profile_top_wire):
+def build_top_wire(
+    name,
+    top_mast_points,
+    bottom_mast_points,
+    lod_distance_meters,
+    material_name,
+    world_up,
+    top_wire_span_resolution,
+    top_wire_sag_clearance,
+    top_wire_sag_height,
+    profile_top_wire
+):
     """
     Generates a 3D mesh for the top overhead wire in Blender.
 
@@ -567,8 +585,10 @@ def build_top_wire(name, top_mast_points, bottom_mast_points, lod_distance_meter
         print("Warning: No path points generated for top wire. Skipping mesh creation.")
         return None
     
-    mesh = bpy.data.meshes.new(f"{name}_TopWire")
-    obj = bpy.data.objects.new(f"{name}_TopWire", mesh)
+    obj_name = f"{name}_TopWire"
+
+    mesh = bpy.data.meshes.new(obj_name)
+    obj = bpy.data.objects.new(obj_name, mesh)
 
     link_object_to_lod_collection(obj, lod_distance_meters)
 
@@ -595,11 +615,21 @@ def build_top_wire(name, top_mast_points, bottom_mast_points, lod_distance_meter
         for loop_index in poly.loop_indices:
             vertex_index = mesh.loops[loop_index].vertex_index
             uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
+
+    print(f"Created object: '{obj.name}' with {len(obj.data.polygons)} polygons.")
     
     return top_wire_points
 
 
-def build_bottom_wire(name, top_mast_points, bottom_mast_points, lod_distance_meters, material_name, world_up, profile_bottom_wire):
+def build_bottom_wire(
+    name,
+    top_mast_points,
+    bottom_mast_points,
+    lod_distance_meters,
+    material_name,
+    world_up,
+    profile_bottom_wire
+):
     """
     Generates a 3D mesh for the bottom overhead wire in Blender.
 
@@ -693,8 +723,10 @@ def build_bottom_wire(name, top_mast_points, bottom_mast_points, lod_distance_me
         print("Warning: No path points generated for bottom wire. Skipping mesh creation.")
         return None
 
-    mesh = bpy.data.meshes.new(f"{name}_BottomWire")
-    obj = bpy.data.objects.new(f"{name}_BottomWire", mesh)
+    obj_name = f"{name}_BottomWire"
+
+    mesh = bpy.data.meshes.new(obj_name)
+    obj = bpy.data.objects.new(obj_name, mesh)
 
     link_object_to_lod_collection(obj, lod_distance_meters)
 
@@ -722,10 +754,24 @@ def build_bottom_wire(name, top_mast_points, bottom_mast_points, lod_distance_me
             vertex_index = mesh.loops[loop_index].vertex_index
             uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
 
+    print(f"Created object: '{obj.name}' with {len(obj.data.polygons)} polygons.")
+
     return bottom_wire_points
 
 
-def build_connectors(name, top_wire_points, bottom_wire_points, lod_distance_meters, material_name, world_up, connector_distance_meters, connector_radius, connector_collar_radius, connector_collar_length, connector_num_sides):
+def build_connectors(
+    name,
+    top_wire_points,
+    bottom_wire_points,
+    lod_distance_meters,
+    material_name,
+    world_up,
+    connector_distance_meters,
+    connector_radius,
+    connector_collar_radius,
+    connector_collar_length,
+    connector_num_sides
+):
     """
     Generates a 3D mesh for the connectors (droppers) between the top and bottom wires in Blender.
 
@@ -885,8 +931,10 @@ def build_connectors(name, top_wire_points, bottom_wire_points, lod_distance_met
                 base_vertex_index + connector_num_sides + side_index
             ))
     
-    mesh = bpy.data.meshes.new(f"{name}_Connectors")
-    obj = bpy.data.objects.new(f"{name}_Connectors", mesh)
+    obj_name = f"{name}_Connectors"
+    
+    mesh = bpy.data.meshes.new(obj_name)
+    obj = bpy.data.objects.new(obj_name, mesh)
 
     link_object_to_lod_collection(obj, lod_distance_meters)
 
@@ -908,6 +956,8 @@ def build_connectors(name, top_wire_points, bottom_wire_points, lod_distance_met
         for loop_index in poly.loop_indices:
             vertex_index = mesh.loops[loop_index].vertex_index
             uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
+    
+    print(f"Created object: '{obj.name}' with {len(obj.data.polygons)} polygons.")
 
 
 def perform_operation(params):

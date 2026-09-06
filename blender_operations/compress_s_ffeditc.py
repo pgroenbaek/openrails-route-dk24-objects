@@ -56,14 +56,14 @@ def wine_path(path):
     return result.stdout.strip()
 
 
-def compress_shape(input_path: str, output_path: str, ffeditc_exe_path: str) -> bool:
+def compress_shape(input_path: str, output_path: str, ffeditc_executable_path: str) -> bool:
     """
     Compresses a shape using the ffeditc_unicode.exe utility.
 
     Args:
         input_path (str): Path to the uncompressed input shape file.
         output_path (str): Path where the compressed shape will be saved.
-        ffeditc_exe_path (str): Path to the ffeditc_unicode.exe executable.
+        ffeditc_executable_path (str): Path to the ffeditc_unicode.exe executable.
 
     Raises:
         FileNotFoundError: If the input file or the specified ffeditc_unicode.exe is not found.
@@ -80,14 +80,14 @@ def compress_shape(input_path: str, output_path: str, ffeditc_exe_path: str) -> 
     if not os.path.isdir(output_dir):
         ensure_directory_exists(output_dir)
 
-    if not os.path.exists(ffeditc_exe_path):
-        raise FileNotFoundError(f"No such file or directory: '{ffeditc_exe_path}'")
+    if not os.path.exists(ffeditc_executable_path):
+        raise FileNotFoundError(f"No such file or directory: '{ffeditc_executable_path}'")
 
-    executable_dir = os.path.dirname(ffeditc_exe_path)
+    executable_dir = os.path.dirname(ffeditc_executable_path)
 
     if platform.system() == "Windows":
         command = [
-            ffeditc_exe_path,
+            ffeditc_executable_path,
             input_path,
             "/c",
             "/o:" + output_path
@@ -98,7 +98,7 @@ def compress_shape(input_path: str, output_path: str, ffeditc_exe_path: str) -> 
 
         command = [
             "wine",
-            ffeditc_exe_path,
+            ffeditc_executable_path,
             wine_input_path,
             "/c",
             "/o:" + wine_output_path,
@@ -144,20 +144,20 @@ def perform_operation(params):
         params (dict): Compression configuration.
 
     Expected keys:
-        - "ffeditc_exe_path" (str): Path to the ffeditc_unicode.exe executable.
+        - "ffeditc_executable_path" (str): Path to the ffeditc_unicode.exe executable.
         - "shape_folder" (str): Path to a folder containing .s
           files to process.
         - "shape_filename" (str, optional): Path to a single .s file.
         - "_project_dir" (str, optional): Project directory used to resolve
           relative paths.
     """
-    ffeditc_exe_path = params.get("ffeditc_exe_path")
     shape_folder = params.get("shape_folder")
     shape_filename = params.get("shape_filename")
+    ffeditc_executable_path = params.get("ffeditc_executable_path")
     project_dir = params.get("_project_dir")
 
-    if not ffeditc_exe_path:
-        raise ValueError("No 'ffeditc_exe_path' parameter specified.")
+    if not ffeditc_executable_path:
+        raise ValueError("No 'ffeditc_executable_path' parameter specified.")
 
     if shape_folder and not os.path.isabs(shape_folder):
         shape_folder = project_dir / shape_folder
@@ -191,4 +191,4 @@ def perform_operation(params):
         if not os.path.isfile(shape_file):
             raise FileNotFoundError(f"Shape file not found: {shape_file}")
 
-        compress_shape(shape_file, shape_file, ffeditc_exe_path)
+        compress_shape(shape_file, shape_file, ffeditc_executable_path)

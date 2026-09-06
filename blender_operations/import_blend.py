@@ -288,7 +288,7 @@ def perform_operation(params):
         - "import_folder" (str): Path to the directory with the .blend
           file to import. Relative paths are resolved against the project directory.
         - "import_filename" (str): Name of the .blend file to import.
-        - "collection_name" (str): Root collection to import. Only this
+        - "import_collection_name" (str): Root collection to import. Only this
           collection and its descendants are imported.
         - "location" (list, optional): Translation as [x, y, z].
         - "rotation" (list, optional): Euler XYZ rotation in degrees as
@@ -306,15 +306,15 @@ def perform_operation(params):
     if not file_path.is_absolute():
         file_path = project_dir / file_path
 
-    collection_name = params["collection_name"]
+    import_collection_name = params["import_collection_name"]
     location = params.get("location", [0.0, 0.0, 0.0])
     rotation = params.get("rotation", [0.0, 0.0, 0.0])
     scale = params.get("scale", [1.0, 1.0, 1.0])
 
     print(f"Importing blend file: '{file_path}'")
-    print(f"Collection: '{collection_name}'")
+    print(f"Importing collection: '{import_collection_name}'")
 
-    objects = import_blend_file(file_path, collection_name)
+    objects = import_blend_file(file_path, import_collection_name)
     transform_objects(objects, location, rotation,scale)
 
     print(f"Imported {len(objects)} objects.")

@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-# This is a GIMP Python-fu script.
+# This is a GIMP Python-fu script (Python 2).
 #
 # Do not run this manually, this script is called by `process_image_gimp.py`,
 # which reads the JSON configuration and converts it into the positional arguments
@@ -28,6 +28,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 from gimpfu import *
 import os
 import sys
+import json
 import traceback
 
 
@@ -42,12 +43,7 @@ def ensure_directory_exists(path):
         os.makedirs(path)
 
 
-def python_fu_export_image_to_png(
-    image,
-    drawable,
-    output_path,
-    png_compression=9
-):
+def python_fu_export_image_to_png(image, drawable, args):
     """
     Exports the current GIMP image to PNG.
 
@@ -58,14 +54,25 @@ def python_fu_export_image_to_png(
         drawable:
             Current GIMP drawable.
 
-        output_path:
-            Full output PNG path.
-
-        png_compression:
-            PNG compression level from 0 to 9.
+        args:
+            Arguments passed to the script.
     """
-    if not output_path:
-        raise RuntimeError("GIMP PNG export requires 'output_path'.")
+    try:
+        args = json.loads(args)
+
+    except (ValueError, TypeError) as e:
+        print >> sys.stderr, "Error: Invalid args JSON: %s" % e
+        raise
+
+    export_folder = args.get("export_folder")
+    export_filename = args.get("export_filename")
+    png_compression = args.get("png_compression")
+
+    if not export_folder:
+        raise RuntimeError("GIMP PNG export requires 'export_folder'.")
+
+    if not export_filename:
+        raise RuntimeError("GIMP PNG export requires 'export_filename'.")
 
     if image is None:
         raise RuntimeError("GIMP PNG export requires an image.")
@@ -77,9 +84,9 @@ def python_fu_export_image_to_png(
 
     png_compression = max(0, min(9, png_compression))
 
-    output_dir = os.path.dirname(output_path)
+    export_path = export_folder + "/" + export_filename
 
-    ensure_directory_exists(output_dir)
+    ensure_directory_exists(export_folder)
 
     temporary_image = None
 
@@ -97,8 +104,8 @@ def python_fu_export_image_to_png(
         pdb.file_png_save(
             temporary_image,
             merged_layer,
-            output_path,
-            output_path,
+            export_path,
+            export_path,
             0,
             png_compression,
             0,
@@ -108,12 +115,10 @@ def python_fu_export_image_to_png(
             0
         )
 
-        print("Image exported to PNG: %s with compression %d" % (output_path, png_compression))
+        print("Image exported to PNG: %s with compression %d" % (export_path, png_compression))
 
     except Exception as e:
-        print >> sys.stderr, (
-            "Error exporting image to PNG '%s': %s" % (output_path, e)
-        )
+        print >> sys.stderr, "Error exporting image to PNG '%s': %s" % (export_path, e)
         traceback.print_exc()
         raise
 
@@ -144,15 +149,9 @@ register(
     [
         (
             PF_STRING,
-            "output_path",
-            "Output PNG Path",
+            "args",
+            "Arguments passed to the script",
             ""
-        ),
-        (
-            PF_INT,
-            "png_compression",
-            "PNG Compression (0-9)",
-            9
         )
     ],
     [],

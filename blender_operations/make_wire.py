@@ -358,7 +358,17 @@ def calculate_mast_wire_positions(masts, mast_types, tile_size, reference_positi
     return wire_mast_points
 
 
-def build_wire(name, wire_attachment_points, wire_name, wire_span_resolution, wire_sag_ratio, world_up, profile_wire, lod_distance, material_name):
+def build_wire(
+    name,
+    wire_attachment_points,
+    wire_name,
+    wire_span_resolution,
+    wire_sag_ratio,
+    world_up,
+    profile_wire,
+    lod_distance,
+    material_name
+):
     """
     Generates a 3D wire mesh in Blender based on a series of attachment points.
 
@@ -444,9 +454,11 @@ def build_wire(name, wire_attachment_points, wire_name, wire_span_resolution, wi
                     base_vertex_index + next_p_idx,
                     base_vertex_index + p_idx
                 ))
+    
+    obj_name = f"{name}_{wire_name}"
 
-    mesh = bpy.data.meshes.new(f"{name}_{wire_name}")
-    obj = bpy.data.objects.new(f"{name}_{wire_name}", mesh)
+    mesh = bpy.data.meshes.new(obj_name)
+    obj = bpy.data.objects.new(obj_name, mesh)
 
     link_object_to_lod_collection(obj, lod_distance)
 
@@ -469,6 +481,8 @@ def build_wire(name, wire_attachment_points, wire_name, wire_span_resolution, wi
         for loop_index in poly.loop_indices:
             vertex_index = mesh.loops[loop_index].vertex_index
             uv_layer.data[loop_index].uv = mesh_uvs[vertex_index]
+
+    print(f"Created object: '{obj.name}' with {len(obj.data.polygons)} polygons.")
 
     return obj
 

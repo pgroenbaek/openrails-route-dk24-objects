@@ -29,63 +29,46 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os
 import platform
 import subprocess
+from pathlib import Path
 
 
-ACEIT_PATH = None
-REMOVE_SOURCE_IMAGE = False
 SUPPORTED_EXTENSIONS = (".dds", ".tga", ".jpg", ".bmp", ".tif", ".dib", ".png", ".ppm")
 
 
-def ensure_directory_exists(path):
-    """
-    Ensures that a directory exists by creating it if necessary.
-
-    Args:
-        path (str): Directory path to check or create.
-    """
-    os.makedirs(path, exist_ok=True)
-
-
 def build_aceit_command(
-    aceit_path,
+    aceit_executable_path,
     image_filepath,
-    extra_params
 ):
     """
     Builds the command used to process an image file with AceIt.
 
     Args:
-        aceit_path (str): Path to the AceIt executable.
+        aceit_executable_path (str): Path to the AceIt executable.
         image_filepath (str): Path to the image file.
-        extra_params (list): Additional AceIt command-line parameters.
 
     Returns:
         list: Complete AceIt command.
     """
     if platform.system() == "Windows":
-        command = [aceit_path, image_filepath]
+        command = [aceit_executable_path, image_filepath, "-q"]
     else:
-        command = ["wine", aceit_path, image_filepath]
-
-    command.extend([str(param) for param in extra_params])
+        command = ["wine", aceit_executable_path, image_filepath, "-q"]
 
     return command
 
 
 def process_image_file(
-    aceit_path,
-    image_filepath,
-    extra_params
+    aceit_executable_path,
+    image_filepath
 ):
     """
     Processes an image file using AceIt.
 
     Args:
-        aceit_path (str): Path to the AceIt executable.
+        aceit_executable_path (str): Path to the AceIt executable.
         image_filepath (str): Path to the image file.
-        extra_params (list): Additional AceIt command-line parameters.
     """
-    command = build_aceit_command(aceit_path, image_filepath, extra_params)
+    command = build_aceit_command(aceit_executable_path, image_filepath)
 
     print(
         "Running AceIt: "
@@ -131,38 +114,36 @@ def perform_operation(params):
         params (dict): AceIt configuration.
 
     Expected keys:
-        - "aceit_path" (str): Path to the AceIt executable.
-        - "export_path" (str, optional): Directory to use when resolving
-          relative image paths.
-        - "file_path" (str, optional): Path to a single image file.
-        - "folder_path" (str, optional): Path to a folder containing image
+        - "aceit_executable_path" (str): Path to the AceIt executable.
+        - "image_folder" (str): Path to a folder containing image
           files to process.
+        - "image_filename" (str, optional): Path to a single image file.
         - "process_extensions" (list, optional): List of file extensions (e.g.,
-          [".png", ".jpg"]) to process if a folder_path is specified. If not
+          [".png", ".jpg"]) to process if only a folder_path is specified. If not
           specified, all SUPPORTED_EXTENSIONS will be processed.
-        - "extra_params" (list, optional): Additional AceIt parameters.
         - "remove_source_image" (bool, optional): Whether to remove source
           image files after successful AceIt processing.
         - "_project_dir" (str, optional): Project directory used to resolve
           relative paths.
     """
-    project_dir = params.get("_project_dir")
-    aceit_path = params.get("aceit_path", ACEIT_PATH)
-    remove_source_image = params.get("remove_source_image", REMOVE_SOURCE_IMAGE)
-    extra_params = params.get("extra_params", [])
-    export_path = params.get("export_path")
-    file_path = params.get("file_path")
-    folder_path = params.get("folder_path")
+    image_folder = Path(params.get("image_folder"))
+    image_filename = params.get("image_filename")
+    remove_source_image = params.get("remove_source_image", False)
     process_extensions = params.get("process_extensions")
+    aceit_executable_path = params.get("aceit_executable_path")
+    project_dir = Path(params.get("_project_dir"))
 
-    if not aceit_path:
-        raise ValueError("No aceit_path specified.")
+    if not aceit_executable_path:
+        raise ValueError("No 'aceit_executable_path' parameter specified.")
 
+    if image_folder and not os.path.isabs(image_folder):
+        image_folder = project_dir / image_folder
+    
     allowed_extensions_set = set(ext.lower() for ext in SUPPORTED_EXTENSIONS)
 
     if process_extensions is not None:
         if not isinstance(process_extensions, list):
-            raise ValueError("'process_extensions' must be a list of strings.")
+            raise ValueError("Parameter 'process_extensions' must be a list of strings.")
 
         filtered_extensions = tuple(
             ext.lower() for ext in process_extensions
@@ -178,62 +159,36 @@ def perform_operation(params):
     else:
         process_extensions = SUPPORTED_EXTENSIONS
 
-    if not project_dir:
-        project_dir = os.getcwd()
+    image_files = []
 
-    if not os.path.isabs(aceit_path):
-        aceit_path = os.path.join(project_dir, aceit_path)
+    if image_filename:
+        image_file = image_folder / image_filename
+        image_files.append(str(image_file))
 
-    if not isinstance(extra_params, list):
-        raise ValueError("'extra_params' must be a list.")
+    elif image_folder:
+        if not os.path.isdir(image_folder):
+            raise FileNotFoundError(f"Folder not found: {image_folder}")
 
-    source_image_paths = []
-
-    if file_path and folder_path:
-        raise ValueError("Cannot specify both 'file_path' and 'folder_path'.")
-
-    elif file_path:
-        source_image_paths.append(file_path)
-
-    elif folder_path:
-        if not os.path.isabs(folder_path):
-            folder_path = os.path.join(project_dir, folder_path)
-
-        if not os.path.isdir(folder_path):
-            raise FileNotFoundError(f"Folder not found: {folder_path}")
-
-        for root, _, files in os.walk(folder_path):
+        for root, _, files in os.walk(image_folder):
             for filename in files:
-                if filename.lower().endswith(process_extensions):
-                    source_image_paths.append(os.path.join(root, filename))
+                if filename.lower().endswith(SUPPORTED_EXTENSIONS):
+                    image_files.append(os.path.join(root, filename))
 
     else:
-        raise ValueError("No 'file_path' or 'folder_path' specified.")
+        raise ValueError("No 'image_filename' or 'image_folder' specified.")
 
-    if export_path:
-        if not os.path.isabs(export_path):
-            export_path = os.path.join(project_dir, export_path)
-
-        ensure_directory_exists(export_path)
-
-    if not source_image_paths:
-        print(f"No supported image files found to process in '{folder_path}'")
+    if not image_files:
+        print(f"No supported image files found to process in '{shape_folder}'")
         return
 
-    for current_image_path in source_image_paths:
-        if not os.path.isabs(current_image_path):
-            if export_path:
-                current_image_path = os.path.join(export_path, current_image_path)
-            else:
-                current_image_path = os.path.join(project_dir, current_image_path)
+    for image_file in image_files:
+        if not os.path.isabs(image_file):
+            image_file = os.path.join(project_dir, image_file)
 
-        if not os.path.isfile(current_image_path):
-            raise FileNotFoundError(f"Source image file not found: {current_image_path}")
+        if not os.path.isfile(image_file):
+            raise FileNotFoundError(f"Image file not found: {image_file}")
 
-        print(f"Processing image with AceIt: {current_image_path}")
-
-        process_image_file(aceit_path, current_image_path, extra_params)
+        process_image_file(aceit_executable_path, image_file)
 
         if remove_source_image:
-            os.remove(current_image_path)
-
+            os.remove(image_file)

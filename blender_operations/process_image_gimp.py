@@ -26,155 +26,33 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 # from the command line with Blender or directly from Blender's scripting
 # console by pasting in the script with `CONFIG_FILES` configured.
 
+import os
 import json
 import itertools
 import subprocess
 from pathlib import Path
 
 
-def sanitize_value(value, replacements):
+SUPPORTED_EXTENSIONS = (".xcf",)
+
+
+def prepare_gimp_operation_args(operation_template):
     """
-    Applies configured string replacements to a value.
+    Converts a GIMP operation's arguments to a JSON string.
 
     Args:
-        value (str): Value to sanitize.
-        replacements (dict): Mapping of strings to replacement strings.
+        operation_template: GIMP operation definition containing an ``args``
+            dictionary.
 
     Returns:
-        str: Sanitized value.
-    """
-    value = str(value)
-
-    for search, replace in replacements.items():
-        value = value.replace(search, replace)
-
-    return value
-
-
-def generate_export_variables(variables_config):
-    """
-    Generates all possible combinations of variable values based on their configurations.
-    Applies formatting and variable-specific replacements.
-
-    Args:
-        variables_config (dict): Dictionary defining each variable's generation rules.
-
-    Returns:
-        list: A list of dictionaries, where each dictionary represents one combination
-              of variable assignments (e.g., [{"var1": "A", "var2": "001"}, ...]).
-    """
-    all_variable_values = {}
-    for var_name, config in variables_config.items():
-        values = []
-        var_type = config.get("type", "string")
-        var_format = config.get("format")
-        var_replacements = config.get("replacements", {})
-
-        if var_type == "integer":
-            start = config["start"]
-            stop = config["stop"]
-            step = config.get("step", 1)
-            for num in range(start, stop + 1, step):
-                val = str(num)
-                if var_format:
-                    val = f"{num:{var_format}}"
-                values.append(sanitize_value(val, var_replacements))
-        elif var_type == "string":
-            if "values" in config:
-                for s_val in config["values"]:
-                    values.append(sanitize_value(s_val, var_replacements))
-            elif "segment_modifiers" in config:
-                for modifier in config["segment_modifiers"]:
-                    prefix = modifier.get("prefix", "")
-                    start = modifier["start"]
-                    stop = modifier["stop"]
-                    step = modifier.get("step", 1)
-                    mod_format = modifier.get("format", var_format)
-                    for number in range(start, stop + 1, step):
-                        val_part = str(number)
-                        if mod_format:
-                            val_part = f"{number:{mod_format}}"
-                        full_val = f"{prefix}{val_part}"
-                        values.append(sanitize_value(full_val, var_replacements))
-            else:
-                raise ValueError(
-                    f"Variable '{var_name}' of type 'string' "
-                    "must have 'values' or 'segment_modifiers'."
-                )
-        else:
-            raise ValueError(f"Unsupported variable type for '{var_name}': {var_type}")
-        all_variable_values[var_name] = values
-
-    # Generate Cartesian product
-    keys = list(all_variable_values.keys())
-    product_lists = all_variable_values.values()
-
-    combinations = []
-    for combo_tuple in itertools.product(*product_lists):
-        combo_dict = dict(zip(keys, combo_tuple))
-        combinations.append(combo_dict)
-    return combinations
-
-
-def prepare_gimp_operation(operation_template, combo):
-    """
-    Converts a single readable dictionary-style GIMP operation argument
-    into positional arguments expected by the configured Python functions,
-    applying variable combinations to any patterns.
-
-    Args:
-        operation_template (dict): GIMP operation definition template.
-        combo (dict): Dictionary of variable assignments for the current combination.
-
-    Returns:
-        dict: GIMP operation with positional argument lists and formatted values.
+        A copy of the GIMP operation with ``args`` serialized as JSON.
     """
     operation = operation_template.copy()
 
-    # Format function_name if it contains patterns
-    function_name = operation.get("function_name", "").format(**combo)
-    operation["function_name"] = function_name
-
     args = operation.get("args", {})
 
-    # If args is a dictionary, format its values. If it's a list, assume it's already processed or static.
-    if isinstance(args, dict):
-        formatted_args = {k: v.format(**combo) if isinstance(v, str) else v for k, v in args.items()}
-        # Now convert to positional arguments based on function_name
-        if function_name == "python-fu-change-text-layer":
-            operation["args"] = [
-                formatted_args.get("input_path", ""),
-                formatted_args.get("output_path", ""),
-                formatted_args.get("text_layer_name", ""),
-                formatted_args.get("new_text", ""),
-            ]
-        elif function_name == "python-fu-export-image-to-png":
-            operation["args"] = [
-                formatted_args.get("output_path", ""),
-                formatted_args.get("png_compression", 9),
-            ]
-        elif function_name == "python-fu-change-text-layer-and-export-png":
-            export_config = formatted_args.get(
-                "export_config",
-                {}
-            )
-            if isinstance(export_config, dict):
-                export_config = {k: v.format(**combo) if isinstance(v, str) else v for k, v in export_config.items()}
-
-            operation["args"] = [
-                formatted_args.get("base_output_dir", ""),
-                json.dumps(export_config),
-                formatted_args.get("png_compression", 9),
-            ]
-        else:
-            raise ValueError(
-                f"Unsupported GIMP function: {function_name}"
-            )
-    else:
-        # If args is already a list, it should not contain patterns; if it does, it's an error.
-        if any(isinstance(arg, str) and '{' in arg for arg in args):
-             raise ValueError("GIMP operation 'args' as a list cannot contain patterns that need dynamic formatting. All pattern-based arguments must be provided in a dictionary.")
-        operation["args"] = args
+    if not isinstance(args, str):
+        operation["args"] = json.dumps(args)
 
     return operation
 
@@ -257,7 +135,7 @@ def get_python_function_name(function_name):
 
 def build_gimp_operation_code(
     project_dir,
-    input_file,
+    image_file,
     operation,
 ):
     """
@@ -265,7 +143,7 @@ def build_gimp_operation_code(
 
     Args:
         project_dir (Path): Project root directory.
-        input_file (str): Input image path.
+        image_file (str): Input image path.
         operation (dict): Prepared GIMP operation.
 
     Returns:
@@ -273,7 +151,7 @@ def build_gimp_operation_code(
     """
     input_path = resolve_project_path(
         project_dir,
-        input_file,
+        image_file,
     )
 
     script_name = operation.get("script_name")
@@ -299,10 +177,7 @@ def build_gimp_operation_code(
         "pdb.gimp_image_get_active_drawable(img)",
     ]
 
-    arguments.extend(
-        gimp_python_argument(arg)
-        for arg in args
-    )
+    arguments.append(gimp_python_argument(args))
 
     script_namespace = (
         "{"
@@ -338,7 +213,7 @@ def build_gimp_operation_code(
 def build_gimp_command(
     project_dir,
     gimp_executable_path,
-    input_file,
+    image_file,
     gimp_operations,
 ):
     """
@@ -347,7 +222,7 @@ def build_gimp_command(
     Args:
         project_dir (Path): Project root directory.
         gimp_executable_path (str): GIMP executable.
-        input_file (str): Input image path.
+        image_file (str): Input image path.
         gimp_operations (list): Prepared GIMP operations.
 
     Returns:
@@ -357,7 +232,6 @@ def build_gimp_command(
         str(gimp_executable_path),
         "--no-interface",
         "--no-data",
-        "--no-fonts",
         "--no-splash",
         "--batch-interpreter",
         "python-fu-eval",
@@ -366,7 +240,7 @@ def build_gimp_command(
     for operation in gimp_operations:
         operation_code = build_gimp_operation_code(
             project_dir,
-            input_file,
+            image_file,
             operation,
         )
 
@@ -392,11 +266,8 @@ def run_gimp_scripts(params):
             _project_dir (Path):
                 Project root directory supplied by run_operations.py.
 
-            input_file (str):
+            image_file (str):
                 Input image path relative to the project directory.
-
-            output_file (str, optional):
-                Common output path.
 
             gimp_operations (list):
                 GIMP operation definitions.
@@ -406,27 +277,25 @@ def run_gimp_scripts(params):
     """
     project_dir = Path(params["_project_dir"]).resolve()
 
-    input_file = params["input_file"]
+    image_file = params["image_file"]
     gimp_operations = params.get("gimp_operations",[],)
     gimp_executable_path = params.get("gimp_executable_path", "gimp")
 
     if isinstance(gimp_executable_path, Path):
         gimp_executable_path = str(gimp_executable_path)
 
-    prepared_operations = prepare_gimp_operations(gimp_operations)
-
     command = build_gimp_command(
         project_dir,
         gimp_executable_path,
-        input_file,
-        prepared_operations,
+        image_file,
+        gimp_operations,
     )
 
     if not command:
         raise RuntimeError("GIMP command is empty.")
 
-    print(f"GIMP executable: {gimp_executable_path}")
-    print(f"GIMP project directory: {project_dir}")
+    print(f"GIMP executable: '{gimp_executable_path}'")
+    print(f"GIMP project directory: '{project_dir}'")
     print()
     print("GIMP command:")
     print()
@@ -540,52 +409,88 @@ def perform_operation(params):
         params (dict): GIMP image processing configuration.
 
     Expected keys:
-        - "_project_dir" (Path): Project root directory supplied by the
-          operation runner.
-        - "variables" (dict): Dictionary defining each variable's generation rules.
-        - "input_file_pattern" (str): Pattern for the input image path relative
-          to the project directory.
-        - "output_file" (str, optional): Pattern for the output image path
+        - "image_folder" (str): Path to a folder containing image
+          files to process.
+        - "image_filename" (str, optional): Path to a single image file.
           relative to the project directory.
+        - "process_extensions" (list, optional): List of file extensions (e.g.,
+          [".xcf"]) to process if only a folder_path is specified. If not
         - "gimp_executable_path" (str, optional): Path to the GIMP executable.
         - "gimp_operations" (list): GIMP operation definition templates to
           execute on each generated input image.
+        - "_project_dir" (str): Project root directory supplied by the
+          operation runner.
     """
-    project_dir = Path(params["_project_dir"]).resolve()
-    variables_config = params.get("variables", {})
-    input_file_pattern = params.get("input_file_pattern")
-    gimp_operations_template = params.get("gimp_operations", [])
+    image_folder = params.get("image_folder")
+    image_filename = params.get("image_filename")
+    process_extensions = params.get("process_extensions")
+    gimp_operations = params.get("gimp_operations", [])
     gimp_executable_path = params.get("gimp_executable_path", "gimp")
-    output_file_pattern = params.get("output_file")
+    project_dir = Path(params["_project_dir"]).resolve()
 
-    if not variables_config:
-        raise ValueError("No 'variables' configuration specified for GIMP operation.")
+    if not gimp_executable_path:
+        raise ValueError("No 'gimp_executable_path' parameter specified.")
 
-    if not input_file_pattern:
-        raise ValueError("No 'input_file_pattern' specified for GIMP operation.")
+    if image_folder and not os.path.isabs(image_folder):
+        image_folder = project_dir / image_folder
+    
+    allowed_extensions_set = set(ext.lower() for ext in SUPPORTED_EXTENSIONS)
 
-    variable_combinations = generate_export_variables(variables_config)
+    if process_extensions is not None:
+        if not isinstance(process_extensions, list):
+            raise ValueError("Parameter 'process_extensions' must be a list of strings.")
 
-    for combo in variable_combinations:
-        current_input_file = input_file_pattern.format(**combo)
-        current_output_file = output_file_pattern.format(**combo) if output_file_pattern else None
+        filtered_extensions = tuple(
+            ext.lower() for ext in process_extensions
+            if ext.lower() in allowed_extensions_set
+        )
 
-        for operation_template in gimp_operations_template:
-            prepared_op = prepare_gimp_operation(operation_template, combo)
-            current_gimp_operations.append(prepared_op)
+        if not filtered_extensions:
+            raise ValueError(
+                "None of the specified 'process_extensions' are supported. "
+                f"Supported extensions are: {', '.join(SUPPORTED_EXTENSIONS)}"
+            )
+        process_extensions = filtered_extensions
+    else:
+        process_extensions = SUPPORTED_EXTENSIONS
+
+    image_files = []
+
+    if image_filename:
+        image_file = image_folder / image_filename
+        image_files.append(str(image_file))
+
+    elif image_folder:
+        if not os.path.isdir(image_folder):
+            raise FileNotFoundError(f"Folder not found: {image_folder}")
+
+        for root, _, files in os.walk(image_folder):
+            for filename in files:
+                if filename.lower().endswith(SUPPORTED_EXTENSIONS):
+                    image_files.append(os.path.join(root, filename))
+
+    else:
+        raise ValueError("No 'image_filename' or 'image_folder' specified.")
+
+    if not image_files:
+        print(f"No supported image files found to process in '{shape_folder}'")
+        return
+
+    for image_file in image_files:
+        gimp_operations_to_execute = []
+
+        for operation_template in gimp_operations:
+            prepared_op = prepare_gimp_operation_args(operation_template)
+            gimp_operations_to_execute.append(prepared_op)
 
         gimp_runner_params = {
             "_project_dir": project_dir,
-            "input_file": current_input_file,
-            "output_file": current_output_file,
-            "gimp_operations": current_gimp_operations,
+            "image_file": image_file,
+            "gimp_operations": gimp_operations_to_execute,
             "gimp_executable_path": gimp_executable_path,
         }
 
-        print(
-            "GIMP Processor: Running GIMP scripts "
-            f"for input: {current_input_file} with combo: {combo}"
-        )
+        print(f"GIMP Processor: Running GIMP scripts for input: '{image_file}'")
 
         run_gimp_scripts(gimp_runner_params)
 

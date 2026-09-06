@@ -4,7 +4,7 @@
         "parameters": {
             "import_folder": "blender_fragments/dk_gantry",
             "import_filename": "PGA_DKGantry_Fe.blend",
-            "collection_name": "MAIN",
+            "import_collection_name": "MAIN",
             "location": [0.0, 0.0, 0.0],
             "rotation": [0.0, 0.0, 0.0],
             "scale": [1.0, 1.0, 1.0]
@@ -35,7 +35,7 @@
     {
         "operation_type": "compress_s_ffeditc",
         "parameters": {
-            "ffeditc_exe_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
+            "ffeditc_executable_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
             "shape_folder": "dist/dk_gantry/shapes",
             "shape_filename": "PGA_DKGantry_Fe.s"
         }
@@ -43,8 +43,8 @@
     {
         "operation_type": "process_image_gimp",
         "parameters": {
-            "input_folder": "gimp_textures/dk_gantry",
-            "input_filename": "PGA_DKGantry_Fe.xcf",
+            "image_folder": "gimp_textures/dk_gantry",
+            "image_filename": "PGA_DKGantry_Fe.xcf",
             "gimp_operations": [ 
                 {
                     "script_name": "export_image_to_png.py",
@@ -61,12 +61,9 @@
     {
         "operation_type": "process_image_aceit",
         "parameters": {
-            "aceit_exe_path": "/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
-            "input_folder": "dist/dk_gantry/textures",
-            "input_filename": "PGA_DKGantry_Fe.png",
-            "extra_params": [
-                "-q"
-            ],
+            "aceit_executable_path": "/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
+            "image_folder": "dist/dk_gantry/textures",
+            "image_filename": "PGA_DKGantry_Fe.png",
             "remove_source_image": true
         }
     }
