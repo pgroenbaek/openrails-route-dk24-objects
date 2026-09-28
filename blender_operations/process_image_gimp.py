@@ -149,11 +149,7 @@ def build_gimp_operation_code(
     Returns:
         str: Python code for GIMP's batch interpreter.
     """
-    input_path = resolve_project_path(
-        project_dir,
-        image_file,
-    )
-
+    input_path = resolve_project_path(project_dir, image_file)
     script_name = operation.get("script_name")
 
     if not script_name:
@@ -174,7 +170,7 @@ def build_gimp_operation_code(
 
     arguments = [
         "img",
-        "pdb.gimp_image_get_active_drawable(img)",
+        "drawable",
     ]
 
     arguments.append(gimp_python_argument(args))
@@ -188,10 +184,19 @@ def build_gimp_operation_code(
     )
 
     return (
-        "img = pdb.gimp_file_load("
-        f"{gimp_python_argument(str(input_path))}, "
+        "import gi; "
+        "gi.require_version('Gimp', '3.0'); "
+        "from gi.repository import Gimp, Gio; "
+
+        f"img = Gimp.file_load("
+        "Gimp.RunMode.NONINTERACTIVE, "
+        f"Gio.File.new_for_path("
         f"{gimp_python_argument(str(input_path))}"
+        ")"
         "); "
+
+        "drawables = img.get_selected_drawables(); "
+        "drawable = drawables[0] if drawables else None; "
 
         f"script_namespace = {script_namespace}; "
 
@@ -248,11 +253,8 @@ def build_gimp_command(
             "--batch",
             operation_code,
         ])
-
-    command.extend([
-        "--batch",
-        "pdb.gimp_quit(1)",
-    ])
+    
+    command.append("--quit")
 
     return command
 
@@ -473,7 +475,7 @@ def perform_operation(params):
         raise ValueError("No 'image_filename' or 'image_folder' specified.")
 
     if not image_files:
-        print(f"No supported image files found to process in '{shape_folder}'")
+        print(f"No supported image files found to process in '{image_folder}'")
         return
 
     for image_file in image_files:

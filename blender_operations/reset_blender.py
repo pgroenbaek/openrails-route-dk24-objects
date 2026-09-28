@@ -30,7 +30,7 @@ import bpy
 import addon_utils
 
 
-EXPORTER_ADDON_MODULE_NAME = "io_export_mstsexporter_4-8-2"
+EXPORTER_ADDON_MODULE_NAME = "io_export_mstsexporter"
 
 
 def perform_operation(params):

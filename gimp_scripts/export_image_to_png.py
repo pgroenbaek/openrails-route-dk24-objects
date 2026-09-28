@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -18,14 +18,19 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-# This is a GIMP Python-fu script (Python 2).
+# This is a GIMP 3.0 Python-Fu script (Python 3).
 #
 # Do not run this manually, this script is called by `process_image_gimp.py`,
 # which reads the JSON configuration and converts it into the positional arguments
 # required by GIMP/Python-Fu. The `process_image_gimp.py` script that calls this
 # script is run in Blender via `run_operations.py`.
 
-from gimpfu import *
+import gi
+
+gi.require_version("Gimp", "3.0")
+
+from gi.repository import Gimp, Gio
+
 import os
 import sys
 import json
@@ -61,7 +66,7 @@ def python_fu_export_image_to_png(image, drawable, args):
         args = json.loads(args)
 
     except (ValueError, TypeError) as e:
-        print >> sys.stderr, "Error: Invalid args JSON: %s" % e
+        print(f"Error: Invalid args JSON: {e}", file=sys.stderr)
         raise
 
     export_folder = args.get("export_folder")
@@ -84,89 +89,89 @@ def python_fu_export_image_to_png(image, drawable, args):
 
     png_compression = max(0, min(9, png_compression))
 
-    export_path = export_folder + "/" + export_filename
+    export_path = os.path.join(export_folder, export_filename)
 
     ensure_directory_exists(export_folder)
 
     temporary_image = None
 
     try:
-        temporary_image = pdb.gimp_image_duplicate(image)
+        temporary_image = image.duplicate()
 
         if temporary_image is None:
             raise RuntimeError("Could not duplicate the GIMP image.")
 
-        merged_layer = pdb.gimp_image_merge_visible_layers(temporary_image, CLIP_TO_IMAGE)
+        merged_layer = temporary_image.merge_visible_layers(
+            Gimp.MergeType.CLIP_TO_IMAGE
+        )
 
         if merged_layer is None:
             raise RuntimeError("Could not merge the visible GIMP layers.")
 
-        pdb.file_png_save(
-            temporary_image,
-            merged_layer,
-            export_path,
-            export_path,
-            0,
-            png_compression,
-            0,
-            0,
-            0,
-            0,
-            0
+        pdb = Gimp.get_pdb()
+
+        export_procedure = pdb.lookup_procedure("file-png-export")
+
+        if export_procedure is None:
+            raise RuntimeError("Could not find GIMP PNG export procedure.")
+
+        export_config = export_procedure.create_config()
+
+        export_config.set_property(
+            "run-mode",
+            Gimp.RunMode.NONINTERACTIVE
         )
 
-        print("Image exported to PNG: %s with compression %d" % (export_path, png_compression))
+        export_config.set_property(
+            "image",
+            temporary_image
+        )
+
+        export_config.set_property(
+            "file",
+            Gio.File.new_for_path(export_path)
+        )
+
+        export_config.set_property(
+            "options",
+            None
+        )
+
+        export_config.set_property(
+            "interlaced",
+            False
+        )
+
+        export_config.set_property(
+            "compression",
+            png_compression
+        )
+
+        result = export_procedure.run(export_config)
+
+        status = result.index(0)
+
+        if status != Gimp.PDBStatusType.SUCCESS:
+            error = pdb.get_last_error()
+
+            if error:
+                raise RuntimeError(f"PNG export failed: {error}")
+
+            raise RuntimeError(f"PNG export failed with status: {status}")
+
+        print(f"Image exported to PNG: {export_path} with compression {png_compression}")
 
     except Exception as e:
-        print >> sys.stderr, "Error exporting image to PNG '%s': %s" % (export_path, e)
+        print(
+            f"Error exporting image to PNG '{export_path}': {e}",
+            file=sys.stderr
+        )
         traceback.print_exc()
         raise
 
     finally:
         if temporary_image is not None:
             try:
-                pdb.gimp_image_delete(temporary_image)
+                temporary_image.delete()
             except Exception:
                 pass
-
-
-register(
-    "python-fu-export-image-to-png",
-
-    "Export Image to PNG",
-
-    "Exports the current image to a PNG file "
-    "with specified compression.",
-
-    "Peter Grønbæk Andersen",
-    "Peter Grønbæk Andersen",
-    "2026",
-
-    "<Image>/Python-Fu/MyScripts/Export PNG...",
-
-    "*",
-
-    [
-        (
-            PF_STRING,
-            "args",
-            "Arguments passed to the script",
-            ""
-        )
-    ],
-    [],
-
-    python_fu_export_image_to_png,
-    menu="/Python-Fu/MyScripts"
-)
-
-
-# IMPORTANT:
-# Only start GIMP's plugin main loop when this file is executed
-# as an actual plugin.
-#
-# `process_image_gimp.py`` executes this file inside an already
-# running GIMP Python-Fu interpreter, so main() must NOT run there.
-
-if __name__ == "__main__":
-    main()

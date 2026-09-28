@@ -34,7 +34,7 @@ from pathlib import Path
 from mathutils import Vector
 
 
-PROJECT_DIR = Path(r"/media/peter/T7 Shield/Repos/personal/openrails-route-dk24-objects")
+PROJECT_DIR = Path(r"/run/media/peter/T7 Shield/Repos/personal/openrails-route-dk24-objects")
 
 CONFIG_FILES = [
     #PROJECT_DIR / "configs" / "dk_wire" / "PGA_DKWire_Odense_162_7.json",

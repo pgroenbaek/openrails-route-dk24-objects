@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -18,14 +18,19 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-# This is a GIMP Python-fu script (Python 2).
+# This is a GIMP 3.0 Python-Fu script (Python 3).
 #
 # Do not run this manually, this script is called by `process_image_gimp.py`,
 # which reads the JSON configuration and converts it into the positional arguments
 # required by GIMP/Python-Fu. The `process_image_gimp.py` script that calls this
 # script is run in Blender via `run_operations.py`.
 
-from gimpfu import *
+import gi
+
+gi.require_version("Gimp", "3.0")
+
+from gi.repository import Gimp, Gegl, Gio
+
 import os
 import sys
 import json
@@ -47,7 +52,7 @@ def apply_filename_replacements(value, replacements):
     Returns:
         str: The resulting string after all replacements have been applied.
     """
-    if not isinstance(value, basestring):
+    if not isinstance(value, str):
         value = str(value)
     
     for old, new in replacements.items():
@@ -66,7 +71,7 @@ def generate_variable_combinations(pattern_variables):
 
     Returns:
         list[dict]: A list of dictionaries, where each dictionary represents
-        a unique combination of variable assignments (e.g., {'var1': 'value1', 'var2': 1}).
+        a unique combination of variable assignments (e.g., {'var1': 'value', 'var2': 1}).
     """
     if not pattern_variables:
         return [{}]
@@ -78,15 +83,15 @@ def generate_variable_combinations(pattern_variables):
 
         values = []
         for value_def in variable_config["values"]:
-            if isinstance(value_def, (int, long, float)):
+            if isinstance(value_def, (int, float)):
                 if variable_type != "number":
-                    raise ValueError("Invalid value '%s' for value of type 'number'." % value_def)
+                    raise ValueError(f"Invalid value '{value_def}' for value of type 'number'.")
                 
                 values.append(value_def)
             
-            elif isinstance(value_def, basestring):
+            elif isinstance(value_def, str):
                 if variable_type != "string":
-                    raise ValueError("Invalid value '%s' for value of type 'string'." % value_def)
+                    raise ValueError(f"Invalid value '{value_def}' for value of type 'string'.")
                 
                 values.append(value_def)
             
@@ -97,18 +102,16 @@ def generate_variable_combinations(pattern_variables):
 
                 if number_start is None or number_stop is None:
                     raise ValueError(
-                        "Invalid value expression in variable '%s', "
+                        f"Invalid value expression in variable '{variable_name}', "
                         "missing 'number_start' or 'number_stop'."
-                        % variable_name
                     )
 
                 for number in range(number_start, number_stop + 1, number_step):
                     if "pattern" in value_def:
                         if variable_type != "string":
                             raise ValueError(
-                                "Invalid value expression in variable '%s', "
+                                f"Invalid value expression in variable '{variable_name}', "
                                 "expressions cannot contain 'pattern' unless variable type is 'string'."
-                                % variable_name
                             )
 
                         resolved_value = value_def["pattern"].format(number=number)
@@ -117,8 +120,7 @@ def generate_variable_combinations(pattern_variables):
                         values.append(str(number) if variable_type == "string" else number)
             else:
                 raise TypeError(
-                    "Unsupported value type for variable '%s': %s"
-                    % (variable_name, type(value_def).__name__)
+                    f"Unsupported value type for variable '{variable_name}': {type(value_def).__name__}"
                 )
         all_variable_values[variable_name] = values
 
@@ -167,8 +169,8 @@ def find_text_layer(image, text_layer_name):
     Returns:
         GIMP text layer or None.
     """
-    for layer in image.layers:
-        if layer.name == text_layer_name and pdb.gimp_item_is_text_layer(layer):
+    for layer in image.get_layers():
+        if layer.get_name() == text_layer_name and isinstance(layer, Gimp.TextLayer):
             return layer
 
     return None
@@ -180,24 +182,27 @@ def set_text_layer_text(
     font="Nimbus Sans Bold",
     font_size=48,
     letter_spacing=0,
-    color=gimpcolor.RGB(0,0,0)
+    color=None
 ):
     """
     Sets the text and styling for a text layer in GIMP.
 
     Args:
-        textlayer (gimp.Layer): The text layer to modify.
+        textlayer (Gimp.TextLayer): The text layer to modify.
         text (str): The text to set for the layer.
-        font (str, optional): The font to use for the text. Default is "NimbusSanL Bold".
+        font (str, optional): The font to use for the text. Default is "Nimbus Sans Bold".
         font_size (int, optional): The font size for the text. Default is 48.
         letter_spacing (int, optional): The letter spacing for the text. Default is 0.
-        color (gimpcolor.RGB, optional): The color of the text. Default is black (RGB(0, 0, 0)).
+        color (Gegl.Color, optional): The color of the text. Default is black.
     """
-    pdb.gimp_text_layer_set_text(textlayer, text)
-    pdb.gimp_text_layer_set_font(textlayer, font)
-    pdb.gimp_text_layer_set_color(textlayer, color)
-    pdb.gimp_text_layer_set_font_size(textlayer, font_size, 0)
-    pdb.gimp_text_layer_set_letter_spacing(textlayer, letter_spacing)
+    if color is None:
+        color = Gegl.Color.new("black")
+
+    textlayer.set_text(text)
+    textlayer.set_font(Gimp.Font.get_by_name(font))
+    textlayer.set_color(color)
+    textlayer.set_font_size(font_size, Gimp.Unit.pixel())
+    textlayer.set_letter_spacing(letter_spacing)
 
 
 def export_png(image, drawable, output_path, png_compression):
@@ -230,30 +235,72 @@ def export_png(image, drawable, output_path, png_compression):
     temporary_image = None
 
     try:
-        temporary_image = pdb.gimp_image_duplicate(image)
+        temporary_image = image.duplicate()
 
         if temporary_image is None:
             raise RuntimeError("Could not duplicate the GIMP image.")
 
-        export_layer = pdb.gimp_image_merge_visible_layers(
-            temporary_image,
-            CLIP_TO_IMAGE
+        export_layer = temporary_image.merge_visible_layers(
+            Gimp.MergeType.CLIP_TO_IMAGE
         )
 
         if export_layer is None:
             raise RuntimeError("Could not merge the visible GIMP layers.")
 
-        pdb.gimp_file_save(
-            temporary_image,
-            export_layer,
-            output_path,
-            "?"
+        pdb = Gimp.get_pdb()
+        export_procedure = pdb.lookup_procedure("file-png-export")
+
+        if export_procedure is None:
+            raise RuntimeError("Could not find GIMP PNG export procedure.")
+
+        export_config = export_procedure.create_config()
+
+        export_config.set_property(
+            "run-mode",
+            Gimp.RunMode.NONINTERACTIVE
         )
+
+        export_config.set_property(
+            "image",
+            temporary_image
+        )
+
+        export_config.set_property(
+            "file",
+            Gio.File.new_for_path(output_path)
+        )
+
+        export_config.set_property(
+            "options",
+            None
+        )
+
+        export_config.set_property(
+            "interlaced",
+            False
+        )
+
+        export_config.set_property(
+            "compression",
+            png_compression
+        )
+
+        result = export_procedure.run(export_config)
+
+        status = result.index(0)
+
+        if status != Gimp.PDBStatusType.SUCCESS:
+            error = pdb.get_last_error()
+
+            if error:
+                raise RuntimeError(f"PNG export failed: {error}")
+
+            raise RuntimeError(f"PNG export failed with status: {status}")
 
     finally:
         if temporary_image is not None:
             try:
-                pdb.gimp_image_delete(temporary_image)
+                temporary_image.delete()
             except Exception:
                 pass
 
@@ -277,7 +324,7 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
         args = json.loads(args)
 
     except (ValueError, TypeError) as e:
-        print >> sys.stderr, "Error: Invalid args JSON: %s" % e
+        print(f"Error: Invalid args JSON: {e}", file=sys.stderr)
         raise
 
     export_folder = args.get("export_folder")
@@ -293,21 +340,26 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
         raise ValueError("Parameter 'export_filename_pattern' is required.")
     
     if not pattern_variables:
-        print >> sys.stderr, (
+        print(
             "Warning: No 'pattern_variables' provided. "
-            "Images will be exported without text and filename changes."
+            "Images will be exported without text and filename changes.",
+            file=sys.stderr
         )
     
     if not text_layer_replacements:
-        print >> sys.stderr, (
+        print(
             "Warning: No 'text_layer_replacements' provided. "
-            "Images will be exported without text changes."
+            "Images will be exported without text changes.",
+            file=sys.stderr
         )
 
     all_combinations = generate_variable_combinations(pattern_variables)
 
     if not all_combinations:
-        print >> sys.stderr, "Warning: No combinations of pattern variables generated. No images will be exported."
+        print(
+            "Warning: No combinations of pattern variables generated. No images will be exported.",
+            file=sys.stderr
+        )
         return
 
 
@@ -324,8 +376,7 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
         
         if not new_text_pattern:
             raise ValueError(
-                "Text layer replacement with name '%s' is missing 'new_text_pattern'."
-                % text_layer_name
+                f"Text layer replacement with name '{text_layer_name}' is missing 'new_text_pattern'."
             )
         
         text_layer_patterns_map[text_layer_name] = new_text_pattern
@@ -342,16 +393,25 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
             current_var_config = pattern_variables.get(var_name, {})
             filename_replacements = current_var_config.get("filename_replacements", {})
             
-            if isinstance(var_value, basestring) and filename_replacements:
-                filename_format_dict[var_name] = apply_filename_replacements(var_value, filename_replacements)
+            if isinstance(var_value, str) and filename_replacements:
+                filename_format_dict[var_name] = apply_filename_replacements(
+                    var_value,
+                    filename_replacements
+                )
             else:
                 filename_format_dict[var_name] = var_value
 
-        resolved_filename = format_pattern_with_combination(export_filename_pattern, filename_format_dict)
+        resolved_filename = format_pattern_with_combination(
+            export_filename_pattern,
+            filename_format_dict
+        )
         resolved_export_filenames.append(resolved_filename)
 
         for text_layer_name, new_text_pattern in text_layer_patterns_map.items():
-            resolved_text = format_pattern_with_combination(new_text_pattern, combination_dict)
+            resolved_text = format_pattern_with_combination(
+                new_text_pattern,
+                combination_dict
+            )
             resolved_text_layer_texts_by_name[text_layer_name].append(resolved_text)
 
     if export_folder:
@@ -368,15 +428,23 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
             text_layer = find_text_layer(image, text_layer_name)
 
             if text_layer is None:
-                print >> sys.stderr, (
-                    "Warning: Text layer '%s' not found. "
-                    "Cannot change text."
-                    % text_layer_name
+                print(
+                    f"Warning: Text layer '{text_layer_name}' not found. Cannot change text.",
+                    file=sys.stderr
                 )
                 continue
             
             new_text = text_values_for_layer[idx]
             text_layer_config = export_text_layer_configs[text_layer_name]
+
+            color_values = text_layer_config.get("color", [0, 0, 0])
+            color = Gegl.Color.new(
+                f"rgba("
+                f"{color_values[0] / 255.0},"
+                f"{color_values[1] / 255.0},"
+                f"{color_values[2] / 255.0},"
+                "1.0)"
+            )
 
             set_text_layer_text(
                 text_layer,
@@ -384,10 +452,10 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
                 font=text_layer_config.get("font", "Nimbus Sans Bold"),
                 font_size=text_layer_config.get("font_size", 48),
                 letter_spacing=text_layer_config.get("letter_spacing", 0.0),
-                color=gimpcolor.RGB(*text_layer_config.get("color", [0, 0, 0]))
+                color=color
             )
 
-            print("Text layer '%s' updated to: '%s'" % (text_layer_name, new_text))
+            print(f"Text layer '{text_layer_name}' updated to: '{new_text}'")
         
         try:
             export_png(
@@ -398,55 +466,11 @@ def python_fu_change_text_layer_and_export_png(image, drawable, args):
             )
 
         except Exception as e:
-            print >> sys.stderr, (
-                "Error exporting image to PNG '%s': %s"
-                % (export_path, e)
+            print(
+                f"Error exporting image to PNG '{export_path}': {e}",
+                file=sys.stderr
             )
             traceback.print_exc()
             raise
 
-        print("Image exported: %s" % (export_path))
-
-
-
-register(
-    "python_fu_change_text_layer_and_export_png",
-
-    "Change Text Layers and Export PNGs",
-
-    "Iteratively changes text layers in an XCF image "
-    "and exports multiple PNG files.",
-
-    "Peter Grønbæk Andersen",
-    "Peter Grønbæk Andersen",
-    "2026",
-
-    "<Image>/Python-Fu/MyScripts/"
-    "Change Text Layers and Export PNGs...",
-
-    "*",
-
-    [
-        (
-            PF_STRING,
-            "args",
-            "Arguments passed to the script",
-            ""
-        )
-    ],
-    [],
-
-    python_fu_change_text_layer_and_export_png,
-    menu="/Python-Fu/MyScripts"
-)
-
-
-# IMPORTANT:
-# Only start GIMP's plugin main loop when this file is executed
-# as an actual plugin.
-#
-# `process_image_gimp.py`` executes this file inside an already
-# running GIMP Python-Fu interpreter, so main() must NOT run there.
-
-if __name__ == "__main__":
-    main()
+        print(f"Image exported: {export_path}")

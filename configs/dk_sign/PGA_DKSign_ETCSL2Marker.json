@@ -35,7 +35,7 @@
     {
         "operation_type": "compress_s_ffeditc",
         "parameters": {
-            "ffeditc_executable_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
+            "ffeditc_executable_path": "/run/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
             "shape_folder": "dist/dk_sign/shapes",
             "shape_filename": "PGA_DKSign_ETCSL2Marker_L.s"
         }
@@ -80,7 +80,7 @@
     {
         "operation_type": "compress_s_ffeditc",
         "parameters": {
-            "ffeditc_executable_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
+            "ffeditc_executable_path": "/run/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
             "shape_folder": "dist/dk_sign/shapes",
             "shape_filename": "PGA_DKSign_ETCSL2Marker_R.s"
         }
@@ -106,7 +106,7 @@
     {
         "operation_type": "process_image_aceit",
         "parameters": {
-            "aceit_executable_path": "/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
+            "aceit_executable_path": "/run/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
             "image_folder": "dist/dk_sign/textures",
             "image_filename": "PGA_DKSign_ETCSL2Marker.png",
             "remove_source_image": true

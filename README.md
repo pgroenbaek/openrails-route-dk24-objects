@@ -14,9 +14,9 @@ Blender Python scripts, models, and textures for the [Denmark 2024 Open Rails ro
 ### Prerequisites
 
 Programs required to be present in PATH:
-- Blender 4.3-ish
+- [Blender 4.3-ish](https://download.blender.org/release/Blender4.3/)
     - with [Blender_MSTS_ORTS_Exporter v4.8.1](https://github.com/pwillard/Blender_MSTS_ORTS_Exporter/releases/tag/4.8.1 ) installed as an add-on.
-- GIMP 2.10-ish
+- [GIMP 3.2-ish](https://download.gimp.org/gimp/v3.2/)
 
 Other programs required:
 - [AceIt](https://www.trainsim.com/forums/filelib-search-fileid?fid=67904)

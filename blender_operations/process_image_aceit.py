@@ -35,6 +35,28 @@ from pathlib import Path
 SUPPORTED_EXTENSIONS = (".dds", ".tga", ".jpg", ".bmp", ".tif", ".dib", ".png", ".ppm")
 
 
+def wine_path(path):
+    """
+    Convert a Unix filesystem path to its Windows equivalent using Wine.
+
+    Args:
+        path: The Unix filesystem path to convert.
+
+    Returns:
+        The corresponding Windows-style path as understood by Wine.
+
+    Raises:
+        subprocess.CalledProcessError: If the winepath command fails.
+    """
+    result = subprocess.run(
+        ["winepath", "-w", path],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
 def build_aceit_command(
     aceit_executable_path,
     image_filepath,
@@ -52,7 +74,8 @@ def build_aceit_command(
     if platform.system() == "Windows":
         command = [aceit_executable_path, image_filepath, "-q"]
     else:
-        command = ["wine", aceit_executable_path, image_filepath, "-q"]
+        wine_image_filepath = wine_path(image_filepath)
+        command = ["wine", aceit_executable_path, wine_image_filepath, "-q"]
 
     return command
 
@@ -178,7 +201,7 @@ def perform_operation(params):
         raise ValueError("No 'image_filename' or 'image_folder' specified.")
 
     if not image_files:
-        print(f"No supported image files found to process in '{shape_folder}'")
+        print(f"No supported image files found to process in '{image_folder}'")
         return
 
     for image_file in image_files:

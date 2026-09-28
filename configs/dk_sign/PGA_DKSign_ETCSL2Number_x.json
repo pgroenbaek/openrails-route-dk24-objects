@@ -292,7 +292,7 @@
     {
         "operation_type": "compress_s_ffeditc",
         "parameters": {
-            "ffeditc_executable_path": "/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
+            "ffeditc_executable_path": "/run/media/peter/T7 Shield/ORTS/Tools/FFEDITC/ffeditc_unicode.exe",
             "shape_folder": "dist/dk_sign_etcsl2number/shapes"
         }
     },
@@ -384,7 +384,7 @@
     {
         "operation_type": "process_image_aceit",
         "parameters": {
-            "aceit_executable_path": "/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
+            "aceit_executable_path": "/run/media/peter/T7 Shield/ORTS/Tools/AceIt/aceit.exe",
             "image_folder": "dist/dk_sign_etcsl2number/textures",
             "process_extensions": [".png"],
             "remove_source_image": false
